@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MAPPR — Video Mapping Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #0a0a0c;
+  --surface: #111116;
+  --panel: #16161d;
+  --border: #252530;
+  --border-hi: #353545;
+  --accent: #00e5ff;
+  --text: #c8c8d8;
+  --text-dim: #5a5a6e;
+  --danger: #ff3860;
+  --success: #00e5a0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  user-select: none;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* ── TOOLBAR ── */
+#toolbar {
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 6px;
+}
+
+.logo { font-size:14px; font-weight:600; letter-spacing:4px; color:var(--accent); margin-right:10px; }
+.logo span { color:var(--text-dim); font-weight:300; }
+
+.sep { width:1px; height:24px; background:var(--border); margin:0 6px; }
+
+.tbtn {
+  width:36px; height:32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius:4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex; align-items:center; justify-content:center;
+  font-family: inherit; font-size:11px;
+  transition: all .1s;
+  position: relative;
+}
+.tbtn:hover { background:var(--panel); border-color:var(--border); color:var(--text); }
+.tbtn.on { background:rgba(0,229,255,.08); border-color:var(--accent); color:var(--accent); }
+
+.tbtn svg { width:16px; height:16px; pointer-events:none; }
+
+.tip {
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  background:var(--panel); border:1px solid var(--border); color:var(--text);
+  font-size:9px; padding:3px 8px; border-radius:3px; white-space:nowrap;
+  pointer-events:none; opacity:0; transition:opacity .15s; z-index:99;
+}
+.tbtn:hover .tip { opacity:1; }
+
+.sp { flex:1; }
+
+.out-ind { display:flex; align-items:center; gap:8px; font-size:10px; color:var(--text-dim); letter-spacing:1px; }
+.out-dot { width:6px; height:6px; border-radius:50%; background:var(--text-dim); transition:background .3s; }
+.out-dot.live { background:var(--success); box-shadow:0 0 8px var(--success); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.launch {
+  height:32px; padding:0 16px;
+  background:var(--accent); color:#000;
+  border:none; border-radius:4px; cursor:pointer;
+  font-family:inherit; font-size:11px; font-weight:600; letter-spacing:2px;
+  transition:all .15s;
+}
+.launch:hover { background:#33eeff; }
+
+/* ── MAIN ── */
+#main {
+  flex:1; display:flex; overflow:hidden;
+}
+
+/* ── CANVAS AREA ── */
+#wrap {
+  flex:1; position:relative; overflow:hidden;
+  background:#0d0d11;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  cursor: crosshair;
+}
+#wrap::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.01) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.01) 1px,transparent 1px);
+  background-size:8px 8px;
+}
+
+#c {
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  display:block;
+  pointer-events:none;
+}
+
+.coords {
+  position:absolute; bottom:10px; left:12px;
+  font-size:10px; color:var(--text-dim); letter-spacing:1px; pointer-events:none;
+}
+.hint {
+  position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+  font-size:10px; color:var(--text-dim); letter-spacing:.5px;
+  background:rgba(0,0,0,.55); padding:4px 12px; border-radius:20px;
+  border:1px solid var(--border); pointer-events:none; white-space:nowrap;
+}
+
+/* ── RIGHT PANEL ── */
+#panel {
+  width:272px; flex-shrink:0;
+  background:var(--panel); border-left:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+
+.ph {
+  height:34px; display:flex; align-items:center; padding:0 14px; gap:8px;
+  font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim);
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.ph em { color:var(--accent); font-style:normal; }
+
+/* poly list */
+#plist {
+  overflow-y:auto; flex-shrink:0;
+  max-height:180px;
+}
+#plist::-webkit-scrollbar { width:3px; }
+#plist::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
+
+.pi {
+  height:32px; display:flex; align-items:center; padding:0 10px; gap:8px;
+  cursor:pointer; transition:background .1s;
+}
+.pi:hover { background:rgba(255,255,255,.04); }
+.pi.sel { background:rgba(0,229,255,.07); }
+
+.pdot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.pname { flex:1; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pi.sel .pname { color:var(--accent); }
+
+.pico {
+  width:18px; height:18px; background:none; border:none; cursor:pointer;
+  color:var(--text-dim); display:flex; align-items:center; justify-content:center;
+  border-radius:2px; font-size:10px; transition:color .1s;
+}
+.pico:hover.del { color:var(--danger); }
+.pico.hid { color:var(--border-hi); }
+
+.empty { padding:20px 14px; text-align:center; color:var(--text-dim); font-size:10px; line-height:1.8; }
+
+/* texture section */
+#tsec {
+  flex:1; overflow-y:auto; border-top:1px solid var(--border);
+}
+#tsec::-webkit-scrollbar { width:3px; }
+#tsec::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
+
+.nosel { padding:28px 14px; text-align:center; color:var(--text-dim); font-size:10px; line-height:1.9; }
+
+.tgrid {
+  display:grid; grid-template-columns:1fr 1fr; gap:5px; padding:10px;
+}
+.tc {
+  position:relative; aspect-ratio:16/9;
+  border-radius:4px; border:1px solid var(--border);
+  overflow:hidden; cursor:pointer; transition:all .12s;
+}
+.tc:hover { border-color:var(--border-hi); transform:scale(1.02); }
+.tc.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.tc canvas { width:100%; height:100%; display:block; }
+.tlbl {
+  position:absolute; bottom:0; left:0; right:0;
+  padding:3px 5px; background:rgba(0,0,0,.7);
+  font-size:9px; letter-spacing:1px; text-transform:uppercase;
+  color:var(--text); text-align:center;
+}
+
+/* props */
+.props { padding:8px 10px 10px; }
+
+.pr { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.pl { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); width:62px; flex-shrink:0; }
+
+input[type=range] {
+  flex:1; -webkit-appearance:none; height:2px;
+  background:var(--border-hi); border-radius:1px; outline:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:11px; height:11px; border-radius:50%;
+  background:var(--accent); cursor:pointer;
+}
+.pv { font-size:10px; color:var(--text); width:32px; text-align:right; }
+
+select {
+  flex:1; background:var(--bg); border:1px solid var(--border);
+  color:var(--text); font-family:inherit; font-size:10px;
+  padding:4px 6px; border-radius:3px; outline:none; cursor:pointer;
+}
+select:focus { border-color:var(--accent); }
+
+.vbtn {
+  width:100%; padding:7px;
+  background:var(--bg); border:1px dashed var(--border-hi);
+  color:var(--text-dim); font-family:inherit; font-size:10px; letter-spacing:1px;
+  border-radius:4px; cursor:pointer; transition:all .15s; text-align:center;
+}
+.vbtn:hover { border-color:var(--accent); color:var(--accent); }
+
+/* status bar */
+#sb {
+  height:26px; flex-shrink:0;
+  background:var(--surface); border-top:1px solid var(--border);
+  display:flex; align-items:center; padding:0 14px; gap:20px;
+}
+.si { font-size:9px; letter-spacing:1px; color:var(--text-dim); }
+.si span { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <div class="logo">MAPPR <span>/ STUDIO</span></div>
+  <div class="sep"></div>
+
+  <button class="tbtn on" id="btn-draw" onclick="setTool('draw')">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+      <polygon points="8,2 14,11 2,11"/>
+      <circle cx="14" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+    </svg>
+    <span class="tip">Draw [D]</span>
+  </button>
+
+  <button class="tbtn" id="btn-select" onclick="setTool('select')">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M3.5 2v10l2.5-2 2 4 1.5-.7-2-4 3.5-.3z"/>
+    </svg>
+    <span class="tip">Select [S]</span>
+  </button>
+
+  <div class="sep"></div>
+
+  <button class="tbtn" onclick="deleteSelected()">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M3 4h10M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/>
+      <path d="M4 4l.6 8.1a1 1 0 001 .9h4.8a1 1 0 001-.9L12 4"/>
+      <line x1="6.5" y1="7" x2="6.5" y2="11"/><line x1="9.5" y1="7" x2="9.5" y2="11"/>
+    </svg>
+    <span class="tip">Delete [X]</span>
+  </button>
+
+  <button class="tbtn" onclick="clearAll()" title="Clear all">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+    </svg>
+    <span class="tip">Clear All</span>
+  </button>
+
+  <div class="sp"></div>
+
+  <div class="out-ind">
+    <div class="out-dot" id="odot"></div>
+    <span id="ostatus">NO OUTPUT</span>
+  </div>
+
+  <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- CANVAS AREA -->
+  <div id="wrap">
+    <canvas id="c"></canvas>
+    <div class="coords" id="coords">X: 0  Y: 0</div>
+    <div class="hint" id="hint">Draw tool active — click to place points</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="panel">
+
+    <div class="ph"><em>◈</em> Polygons <div style="flex:1"></div><span id="pcnt" style="color:var(--accent)">0</span></div>
+    <div id="plist"><div class="empty" id="emsg">No polygons yet.<br>Use Draw tool to start.</div></div>
+
+    <div class="ph" style="border-top:1px solid var(--border)"><em>◉</em> Texture / Effect</div>
+    <div id="tsec">
+      <div class="nosel" id="nosel">Select a polygon<br>to assign a texture</div>
+      <div id="tcontent" style="display:none">
+        <div class="tgrid" id="tgrid"></div>
+        <div class="props">
+          <div class="pr">
+            <span class="pl">Opacity</span>
+            <input type="range" id="sl-op" min="0" max="100" value="100" oninput="setProp('opacity', this.value/100); document.getElementById('vop').textContent=this.value+'%'">
+            <span class="pv" id="vop">100%</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Speed</span>
+            <input type="range" id="sl-sp" min="10" max="300" value="100" oninput="setProp('speed', this.value/100); document.getElementById('vsp').textContent=(this.value/100).toFixed(1)+'x'">
+            <span class="pv" id="vsp">1.0x</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Blend</span>
+            <select id="sel-blend" onchange="setProp('blend', this.value)">
+              <option value="source-over">Normal</option>
+              <option value="screen">Screen</option>
+              <option value="multiply">Multiply</option>
+              <option value="overlay">Overlay</option>
+              <option value="lighter">Add</option>
+              <option value="lighten">Lighten</option>
+            </select>
+          </div>
+          <div id="vsec" style="display:none">
+            <input type="file" id="vfile" accept="video/*" style="display:none" onchange="loadVideo(this)">
+            <button class="vbtn" onclick="document.getElementById('vfile').click()">+ Load Video File</button>
+            <div id="vstatus" style="font-size:9px;color:var(--text-dim);margin-top:5px;text-align:center;letter-spacing:1px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="sb">
+  <div class="si">TOOL: <span id="st-tool">DRAW</span></div>
+  <div class="si">POLYS: <span id="st-poly">0</span></div>
+  <div class="si">SELECTED: <span id="st-sel">—</span></div>
+  <div class="si">FPS: <span id="st-fps">—</span></div>
+  <div style="flex:1"></div>
+  <div class="si">MAPPR v1.0</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  SETUP
+// ─────────────────────────────────────────────
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Size canvas to wrap — called on load + resize
+function sizeCanvas() {
+  const r = wrap.getBoundingClientRect();
+  const w = r.width  || wrap.clientWidth  || wrap.offsetWidth;
+  const h = r.height || wrap.clientHeight || wrap.offsetHeight;
+  if (w > 0 && h > 0) { canvas.width = w; canvas.height = h; }
+}
+sizeCanvas();
+window.addEventListener('resize', sizeCanvas);
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let tool     = 'draw';   // 'draw' | 'select'
+let polys    = [];
+let selId    = null;
+let drawing  = false;
+let wip      = [];       // work-in-progress points
+let mouse    = { x:0, y:0 };
+let dragging = null;     // { type:'vertex'|'poly', polyId, vertIdx?, startMouse?, startPts? }
+let videos   = {};       // polyId → <video>
+let colorN   = 0;
+const COLORS = ['#ff3030','#ff6b35','#f7c948','#00e5a0','#00e5ff','#a855f7','#ff69b4','#88aaff'];
+
+// BroadcastChannel (works in Chrome; may fail on file:// in Safari)
+let bc = null;
+try { bc = new BroadcastChannel('videomapping'); } catch(e) {}
+if (bc) {
+  bc.onmessage = ev => {
+    if (ev.data.type === 'ready') { setOutputLive(true); broadcast(); }
+    if (ev.data.type === 'closed') setOutputLive(false);
+  };
+}
+
+// localStorage fallback — output polls this key every 300ms
+function writeLS(data) {
+  try { localStorage.setItem('mappr_state', JSON.stringify(data)); } catch(e) {}
+}
+
+// Poll for output window acknowledgement via localStorage
+window.addEventListener('storage', e => {
+  if (e.key === 'mappr_ready') { setOutputLive(true); broadcast(); }
+  if (e.key === 'mappr_closed') setOutputLive(false);
+});
+
+const TEXTURES = [
+  { id:'lava',    name:'Lava'     },
+  { id:'ocean',   name:'Ocean'    },
+  { id:'neon',    name:'Neon Grid'},
+  { id:'fire',    name:'Fire'     },
+  { id:'noise',   name:'Noise'    },
+  { id:'rainbow', name:'Rainbow'  },
+  { id:'stars',   name:'Stars'    },
+  { id:'sweep',   name:'Sweep'    },
+  { id:'video',   name:'Video'    },
+];
+
+// ─────────────────────────────────────────────
+//  TOOLS
+// ─────────────────────────────────────────────
+function setTool(t) {
+  tool = t;
+  if (t !== 'draw') { drawing = false; wip = []; }
+  document.getElementById('btn-draw').classList.toggle('on', t==='draw');
+  document.getElementById('btn-select').classList.toggle('on', t==='select');
+  document.getElementById('st-tool').textContent = t.toUpperCase();
+  wrap.style.cursor = t === 'draw' ? 'crosshair' : 'default';
+  updateHint();
+}
+
+function updateHint() {
+  const h = document.getElementById('hint');
+  if (tool === 'draw') {
+    h.textContent = drawing
+      ? `${wip.length} pts — double-click or click first point to close`
+      : 'Click to start drawing a polygon';
+  } else {
+    h.textContent = 'Click to select • Drag vertex or polygon to move';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT' || e.target.tagName==='SELECT') return;
+  if (e.key==='d'||e.key==='D') setTool('draw');
+  if (e.key==='s'||e.key==='S') setTool('select');
+  if (e.key==='x'||e.key==='X'||e.key==='Delete') deleteSelected();
+  if (e.key==='Escape') { drawing=false; wip=[]; updateHint(); }
+});
+
+// ─────────────────────────────────────────────
+//  MOUSE — all on wrap so we always get events
+// ─────────────────────────────────────────────
+function evXY(e) {
+  const r = wrap.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+wrap.addEventListener('mousemove', e => {
+  const {x,y} = evXY(e);
+  mouse.x = x; mouse.y = y;
+  document.getElementById('coords').textContent = `X: ${Math.round(x)}  Y: ${Math.round(y)}`;
+
+  if (!dragging) return;
+
+  if (dragging.type === 'vertex') {
+    const p = polys.find(p=>p.id===dragging.polyId);
+    if (p) { p.points[dragging.vertIdx] = [x,y]; broadcast(); }
+  } else if (dragging.type === 'poly') {
+    const p = polys.find(p=>p.id===dragging.polyId);
+    if (p) {
+      const dx = x - dragging.startMouse.x, dy = y - dragging.startMouse.y;
+      p.points = dragging.startPts.map(([px,py])=>[px+dx,py+dy]);
+      broadcast();
+    }
+  }
+});
+
+wrap.addEventListener('mousedown', e => {
+  if (tool !== 'select') return;
+  const {x,y} = evXY(e);
+
+  // vertex?
+  if (selId) {
+    const p = polys.find(p=>p.id===selId);
+    if (p) {
+      for (let i=0;i<p.points.length;i++) {
+        if (dist(x,y,...p.points[i]) < 9) {
+          dragging = { type:'vertex', polyId:selId, vertIdx:i };
+          return;
+        }
+      }
+    }
+  }
+  // polygon body?
+  for (let i=polys.length-1;i>=0;i--) {
+    if (ptInPoly(x,y,polys[i].points)) {
+      select(polys[i].id);
+      dragging = { type:'poly', polyId:polys[i].id,
+        startMouse:{x,y}, startPts:polys[i].points.map(p=>[...p]) };
+      return;
+    }
+  }
+  select(null);
+});
+
+wrap.addEventListener('mouseup', () => {
+  if (dragging) { dragging=null; broadcast(); }
+  wrap.style.cursor = tool==='draw' ? 'crosshair' : 'default';
+});
+
+wrap.addEventListener('click', e => {
+  if (tool !== 'draw') return;
+  // Ignore if this click ended a drag (mousedown+move)
+  if (dragging) return;
+
+  const {x,y} = evXY(e);
+
+  if (!drawing) {
+    // Start a new polygon
+    drawing = true;
+    wip = [[x,y]];
+    updateHint();
+    return;
+  }
+
+  // Close if near first point (and have at least 3 pts)
+  if (wip.length >= 3 && dist(x,y,...wip[0]) < 14) {
+    closePoly();
+    return;
+  }
+
+  wip.push([x,y]);
+  updateHint();
+});
+
+wrap.addEventListener('dblclick', e => {
+  if (tool !== 'draw') return;
+  // dblclick fires after 2 click events. Remove the last point that was added
+  // by the second click, then close if we have enough points.
+  if (wip.length > 3) wip.pop();
+  if (wip.length >= 3) closePoly();
+});
+
+// ─────────────────────────────────────────────
+//  POLYGON OPS
+// ─────────────────────────────────────────────
+function closePoly() {
+  if (wip.length < 3) return;
+  const p = {
+    id: Date.now(),
+    points: [...wip],
+    texture: 'lava',
+    opacity: 1,
+    speed: 1,
+    blend: 'source-over',
+    visible: true,
+    color: COLORS[colorN++ % COLORS.length],
+  };
+  polys.push(p);
+  drawing = false; wip = [];
+  select(p.id);
+  refreshList();
+  broadcast();
+  updateHint();
+}
+
+function select(id) {
+  selId = id;
+  document.querySelectorAll('.pi').forEach(el=>el.classList.toggle('sel', el.dataset.id==id));
+  document.getElementById('st-sel').textContent = id ? `P${id%10000}` : '—';
+  const tc = document.getElementById('tcontent');
+  const ns = document.getElementById('nosel');
+  if (id) {
+    tc.style.display='block'; ns.style.display='none';
+    const p = polys.find(p=>p.id===id);
+    if (p) syncPropsUI(p);
+  } else {
+    tc.style.display='none'; ns.style.display='block';
+  }
+}
+
+function syncPropsUI(p) {
+  document.querySelectorAll('.tc').forEach(c=>c.classList.toggle('on', c.dataset.id===p.texture));
+  document.getElementById('sl-op').value = Math.round(p.opacity*100);
+  document.getElementById('vop').textContent = Math.round(p.opacity*100)+'%';
+  document.getElementById('sl-sp').value = Math.round(p.speed*100);
+  document.getElementById('vsp').textContent = p.speed.toFixed(1)+'x';
+  document.getElementById('sel-blend').value = p.blend;
+  document.getElementById('vsec').style.display = p.texture==='video' ? 'block':'none';
+}
+
+function setProp(key, val) {
+  const p = polys.find(p=>p.id===selId);
+  if (!p) return;
+  p[key] = val;
+  if (key==='texture') {
+    document.querySelectorAll('.tc').forEach(c=>c.classList.toggle('on', c.dataset.id===val));
+    document.getElementById('vsec').style.display = val==='video'?'block':'none';
+  }
+  broadcast();
+}
+
+function deleteSelected() {
+  if (!selId) return;
+  polys = polys.filter(p=>p.id!==selId);
+  select(null); refreshList(); broadcast();
+}
+
+function clearAll() {
+  if (!polys.length) return;
+  if (!confirm('Clear all polygons?')) return;
+  polys=[]; drawing=false; wip=[];
+  select(null); refreshList(); broadcast();
+}
+
+function refreshList() {
+  const list = document.getElementById('plist');
+  document.getElementById('emsg')?.remove();
+  list.querySelectorAll('.pi').forEach(e=>e.remove());
+  document.getElementById('pcnt').textContent = polys.length;
+  document.getElementById('st-poly').textContent = polys.length;
+
+  if (!polys.length) {
+    const e = document.createElement('div');
+    e.className='empty'; e.id='emsg';
+    e.innerHTML='No polygons yet.<br>Use Draw tool to start.';
+    list.appendChild(e); return;
+  }
+
+  polys.forEach((p,i) => {
+    const row = document.createElement('div');
+    row.className='pi'+(p.id===selId?' sel':'');
+    row.dataset.id = p.id;
+    row.onclick = () => select(p.id);
+
+    const dot = document.createElement('div');
+    dot.className='pdot'; dot.style.background=p.color;
+
+    const name = document.createElement('div');
+    name.className='pname'; name.textContent=`Poly ${String(i+1).padStart(2,'0')}`;
+
+    const vis = document.createElement('button');
+    vis.className='pico'+(p.visible?'':' hid'); vis.textContent=p.visible?'◉':'○';
+    vis.onclick=ev=>{ev.stopPropagation();p.visible=!p.visible;refreshList();broadcast();};
+
+    const del = document.createElement('button');
+    del.className='pico del'; del.textContent='✕';
+    del.onclick=ev=>{ev.stopPropagation();polys=polys.filter(q=>q.id!==p.id);if(selId===p.id)select(null);refreshList();broadcast();};
+
+    row.append(dot,name,vis,del);
+    list.appendChild(row);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  VIDEO
+// ─────────────────────────────────────────────
+function loadVideo(inp) {
+  if (!selId||!inp.files[0]) return;
+  const url = URL.createObjectURL(inp.files[0]);
+  const v = document.createElement('video');
+  v.src=url; v.loop=true; v.muted=true; v.autoplay=true; v.play();
+  videos[selId]=v;
+  document.getElementById('vstatus').textContent='✓ '+inp.files[0].name;
+  broadcast();
+}
+
+// ─────────────────────────────────────────────
+//  OUTPUT
+// ─────────────────────────────────────────────
+let outWin = null;
+
+function launchOutput() {
+  if (outWin && !outWin.closed) { outWin.focus(); return; }
+  outWin = window.open('output.html','mappr_out',
+    'width=1280,height=720,toolbar=0,menubar=0,location=0');
+  setTimeout(()=>{ setOutputLive(true); broadcast(); }, 600);
+}
+
+function setOutputLive(v) {
+  document.getElementById('odot').classList.toggle('live',v);
+  document.getElementById('ostatus').textContent = v?'LIVE':'NO OUTPUT';
+}
+
+function broadcast() {
+  const data = polys.map(p=>({
+    id:p.id, points:p.points, texture:p.texture,
+    opacity:p.opacity, speed:p.speed, blend:p.blend,
+    visible:p.visible, color:p.color,
+  }));
+  // BroadcastChannel
+  if (bc) bc.postMessage({ type:'update', polys: data });
+  // localStorage fallback
+  writeLS(data);
+}
+
+// ─────────────────────────────────────────────
+//  TEXTURE PREVIEW GRID
+// ─────────────────────────────────────────────
+const previews = {};  // texId → canvas context
+
+function buildGrid() {
+  const g = document.getElementById('tgrid'); g.innerHTML='';
+  TEXTURES.forEach(t => {
+    const card = document.createElement('div');
+    card.className='tc'; card.dataset.id=t.id;
+    card.onclick=()=>setProp('texture',t.id);
+
+    const pc = document.createElement('canvas');
+    pc.width=120; pc.height=68;
+    previews[t.id] = pc.getContext('2d');
+
+    const lbl = document.createElement('div');
+    lbl.className='tlbl'; lbl.textContent=t.name;
+
+    card.append(pc,lbl);
+    g.appendChild(card);
+  });
+}
+buildGrid();
+
+// ─────────────────────────────────────────────
+//  TEXTURE RENDERERS
+// ─────────────────────────────────────────────
+function drawTex(ctx2, id, w, h, t, polyId) {
+  if (w<=0||h<=0) return;
+  switch(id) {
+    case 'lava':    texLava(ctx2,w,h,t); break;
+    case 'ocean':   texOcean(ctx2,w,h,t); break;
+    case 'neon':    texNeon(ctx2,w,h,t); break;
+    case 'fire':    texFire(ctx2,w,h,t); break;
+    case 'noise':   texNoise(ctx2,w,h,t); break;
+    case 'rainbow': texRainbow(ctx2,w,h,t); break;
+    case 'stars':   texStars(ctx2,w,h,t); break;
+    case 'sweep':   texSweep(ctx2,w,h,t); break;
+    case 'video':   texVideo(ctx2,w,h,polyId); break;
+  }
+}
+
+function plasma(nx,ny,t) {
+  return (Math.sin(nx*8+t)+Math.sin(ny*6+t*1.3)+
+          Math.sin((nx+ny)*5+t*.7)+Math.sin(Math.sqrt(nx*nx+ny*ny)*7+t));
+}
+
+function pixelTex(fn, w, h, scale=4) {
+  const sw = Math.ceil(w/scale)||1, sh = Math.ceil(h/scale)||1;
+  const id = new ImageData(sw, sh);
+  fn(id.data, sw, sh);
+  const tmp = document.createElement('canvas');
+  tmp.width=sw; tmp.height=sh;
+  tmp.getContext('2d').putImageData(id, 0, 0);
+  return { tmp, sw, sh };
+}
+
+function texLava(ctx2, w, h, t) {
+  const { tmp } = pixelTex((d,sw,sh) => {
+    for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
+      const v = (plasma(x/sw, y/sh, t)+4)/8;
+      const i=(y*sw+x)*4;
+      d[i]=Math.min(255,v*310); d[i+1]=Math.max(0,v*80-40); d[i+2]=0; d[i+3]=255;
+    }
+  }, w, h);
+  ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texOcean(ctx2, w, h, t) {
+  const { tmp } = pixelTex((d,sw,sh) => {
+    for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
+      const nx=x/sw, ny=y/sh;
+      const v = (Math.sin(nx*6-t*1.2)*Math.cos(ny*4+t*.5)+Math.sin(nx*3+ny*5-t)*.5+2)/4;
+      const i=(y*sw+x)*4;
+      d[i]=0; d[i+1]=Math.min(255,v*120+60); d[i+2]=Math.min(255,v*200+80); d[i+3]=255;
+    }
+  }, w, h);
+  ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texNeon(ctx2, w, h, t) {
+  const gs = Math.max(28, w/18);
+  const pulse = .5+.5*Math.sin(t*2);
+  ctx2.fillStyle='#000'; ctx2.fillRect(0,0,w,h);
+  ctx2.strokeStyle=`rgba(0,229,255,${.35+pulse*.4})`; ctx2.lineWidth=.8;
+  ctx2.shadowColor='#00e5ff'; ctx2.shadowBlur=6+pulse*8;
+  for (let x=0;x<w+gs;x+=gs) {
+    const ox=(x+t*35)%(w+gs)-gs;
+    ctx2.beginPath(); ctx2.moveTo(ox,0); ctx2.lineTo(ox,h); ctx2.stroke();
+  }
+  for (let y=0;y<h+gs;y+=gs) {
+    const oy=(y+t*17)%(h+gs)-gs;
+    ctx2.beginPath(); ctx2.moveTo(0,oy); ctx2.lineTo(w,oy); ctx2.stroke();
+  }
+  ctx2.shadowBlur=0;
+  const g=ctx2.createLinearGradient(0,h*.45,0,h);
+  g.addColorStop(0,`rgba(168,85,247,${.35+pulse*.25})`); g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2.fillStyle=g; ctx2.fillRect(0,h*.45,w,h);
+}
+
+function texFire(ctx2, w, h, t) {
+  const { tmp } = pixelTex((d,sw,sh) => {
+    for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
+      const ny=1-y/sh, nx=x/sw;
+      const fl=Math.sin(nx*10+t*4)*.12+Math.sin(nx*5-t*3)*.09;
+      const heat=Math.max(0,Math.min(1,ny+fl));
+      let r=0,g=0,b=0;
+      if (heat>.9){r=255;g=255;b=Math.round((heat-.9)*2550);}
+      else if(heat>.6){r=255;g=Math.round((heat-.6)/.3*200);}
+      else if(heat>.3){r=Math.round((heat-.3)/.3*255);}
+      const i=(y*sw+x)*4; d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;
+    }
+  }, w, h);
+  ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texNoise(ctx2, w, h, t) {
+  const { tmp, sw, sh } = pixelTex((d,sw,sh) => {
+    const s=Math.floor(t*30);
+    for (let i=0;i<d.length;i+=4){
+      const v=Math.abs((Math.sin(i*127.1+s)*43758.5)%1)*255;
+      d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
+    }
+  }, w, h, 2);
+  ctx2.imageSmoothingEnabled=false;
+  ctx2.drawImage(tmp,0,0,w,h);
+  ctx2.imageSmoothingEnabled=true;
+}
+
+function texRainbow(ctx2, w, h, t) {
+  const g=ctx2.createLinearGradient(0,0,w,h);
+  for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${(i*60+t*55)%360},100%,55%)`);
+  ctx2.fillStyle=g; ctx2.fillRect(0,0,w,h);
+}
+
+function texStars(ctx2, w, h, t) {
+  ctx2.fillStyle='#000'; ctx2.fillRect(0,0,w,h);
+  for(let i=0;i<180;i++){
+    const s=i*1234.5;
+    const sx=((Math.sin(s)*.5+.5)*w*5+t*(18+i%25)*1.2)%w;
+    const sy=(Math.cos(s*1.3)*.5+.5)*h;
+    const r=.4+(i%5)*.45;
+    ctx2.fillStyle=`rgba(255,255,255,${.4+.6*Math.abs(Math.sin(t*1.5+i))})`;
+    ctx2.beginPath(); ctx2.arc(sx,sy,r,0,Math.PI*2); ctx2.fill();
+  }
+}
+
+function texSweep(ctx2, w, h, t) {
+  const phase=(t*.28)%1, x=phase*(w+200)-100;
+  const bg=ctx2.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,`hsl(${(t*28)%360},65%,14%)`);
+  bg.addColorStop(1,`hsl(${(t*28+130)%360},65%,6%)`);
+  ctx2.fillStyle=bg; ctx2.fillRect(0,0,w,h);
+  const g=ctx2.createLinearGradient(x-120,0,x+120,0);
+  g.addColorStop(0,'rgba(168,85,247,0)');
+  g.addColorStop(.3,'rgba(168,85,247,.85)');
+  g.addColorStop(.5,'rgba(255,255,255,1)');
+  g.addColorStop(.7,'rgba(0,229,255,.85)');
+  g.addColorStop(1,'rgba(0,229,255,0)');
+  ctx2.fillStyle=g; ctx2.fillRect(0,0,w,h);
+}
+
+function texVideo(ctx2, w, h, polyId) {
+  const v = videos[polyId];
+  if (v && v.readyState>=2) { ctx2.drawImage(v,0,0,w,h); }
+  else { ctx2.fillStyle='#1a1a1a'; ctx2.fillRect(0,0,w,h); }
+}
+
+// ─────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────
+function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
+
+function ptInPoly(px,py,pts) {
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const [xi,yi]=pts[i],[xj,yj]=pts[j];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+function bbox(pts) {
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const x=Math.min(...xs), y=Math.min(...ys);
+  return { x, y, w:Math.max(1,Math.max(...xs)-x), h:Math.max(1,Math.max(...ys)-y) };
+}
+
+// ─────────────────────────────────────────────
+//  RENDER LOOP
+// ─────────────────────────────────────────────
+// Offscreen canvas for texture compositing
+const off = document.createElement('canvas');
+const octx = off.getContext('2d');
+
+let fpsFrames=0, fpsLast=0, fpsVal=0;
+
+function render(ts) {
+  const t = ts * 0.001;
+
+  // ensure canvas has correct dimensions
+  if (canvas.width < 10 || canvas.height < 10) sizeCanvas();
+
+  // FPS
+  fpsFrames++;
+  if (ts-fpsLast>1000){ fpsVal=fpsFrames; fpsFrames=0; fpsLast=ts; document.getElementById('st-fps').textContent=fpsVal; }
+
+  // sync canvas dimensions
+  const cw = canvas.width, ch = canvas.height;
+  if (off.width!==cw||off.height!==ch){ off.width=cw; off.height=ch; }
+
+  // clear
+  ctx.clearRect(0,0,cw,ch);
+
+  // draw completed polygons
+  polys.forEach(p => {
+    if (!p.visible || p.points.length<3) return;
+    const bb = bbox(p.points);
+
+    // render texture into offscreen, clipped to polygon
+    octx.clearRect(0,0,cw,ch);
+    octx.save();
+    octx.beginPath();
+    p.points.forEach(([px,py],i)=>i===0?octx.moveTo(px,py):octx.lineTo(px,py));
+    octx.closePath();
+    octx.clip();
+    octx.save();
+    octx.translate(bb.x, bb.y);
+    drawTex(octx, p.texture, bb.w, bb.h, t*p.speed, p.id);
+    octx.restore();
+    octx.restore();
+
+    // blit to main canvas
+    ctx.save();
+    ctx.globalAlpha = p.opacity;
+    ctx.globalCompositeOperation = p.blend;
+    ctx.drawImage(off, 0, 0);
+    ctx.restore();
+
+    // outline
+    ctx.save();
+    ctx.beginPath();
+    p.points.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+    ctx.closePath();
+    const isSel = p.id===selId;
+    ctx.strokeStyle = isSel ? '#00e5ff' : p.color+'80';
+    ctx.lineWidth = isSel ? 1.5 : 0.8;
+    ctx.stroke();
+    ctx.restore();
+
+    // vertex handles when selected + select tool
+    if (isSel && tool==='select') {
+      p.points.forEach(([vx,vy])=>{
+        ctx.beginPath(); ctx.arc(vx,vy,5,0,Math.PI*2);
+        ctx.fillStyle='#00e5ff'; ctx.fill();
+        ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke();
+      });
+    }
+  });
+
+  // WIP polygon while drawing
+  if (drawing && wip.length>0) {
+    ctx.save();
+
+    // dashed preview line
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(0,229,255,0.9)';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+    ctx.lineTo(mouse.x, mouse.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // filled preview area
+    if (wip.length>=2) {
+      ctx.beginPath();
+      wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+      ctx.closePath();
+      ctx.fillStyle='rgba(0,229,255,0.07)';
+      ctx.fill();
+    }
+
+    // vertex dots
+    wip.forEach(([vx,vy],i)=>{
+      const isFirst = i===0;
+      // close-hint ring on first point
+      if (isFirst && wip.length>=3 && dist(mouse.x,mouse.y,vx,vy)<14) {
+        ctx.beginPath(); ctx.arc(vx,vy,13,0,Math.PI*2);
+        ctx.strokeStyle='rgba(0,229,255,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(vx,vy,isFirst?6:4,0,Math.PI*2);
+      ctx.fillStyle=isFirst?'#00e5ff':'#ffffff';
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  // animate preview thumbnails
+  TEXTURES.forEach(t2 => {
+    const p2 = previews[t2.id];
+    if (p2) drawTex(p2, t2.id, 120, 68, t, null);
+  });
+
+  requestAnimationFrame(render);
+}
+
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
