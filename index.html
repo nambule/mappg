@@ -679,10 +679,16 @@ function loadVideo(inp) {
 let outWin = null;
 
 function launchOutput() {
-  if (outWin && !outWin.closed) { outWin.focus(); return; }
+  if (outWin && !outWin.closed) { outWin.focus(); broadcast(); return; }
   outWin = window.open('output.html','mappr_out',
     'width=1280,height=720,toolbar=0,menubar=0,location=0');
-  setTimeout(()=>{ setOutputLive(true); broadcast(); }, 600);
+  // Push data as soon as the output page has loaded
+  outWin.addEventListener('load', () => {
+    setOutputLive(true);
+    broadcast();
+  });
+  // Also push after a short delay as a backup
+  setTimeout(() => { setOutputLive(true); broadcast(); }, 800);
 }
 
 function setOutputLive(v) {
@@ -696,9 +702,13 @@ function broadcast() {
     opacity:p.opacity, speed:p.speed, blend:p.blend,
     visible:p.visible, color:p.color,
   }));
-  // BroadcastChannel
+  // 1. Direct window call (most reliable for file://)
+  if (outWin && !outWin.closed) {
+    try { outWin.applyUpdate(data); } catch(e) {}
+  }
+  // 2. BroadcastChannel
   if (bc) bc.postMessage({ type:'update', polys: data });
-  // localStorage fallback
+  // 3. localStorage fallback
   writeLS(data);
 }
 

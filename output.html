@@ -30,39 +30,25 @@ document.addEventListener('dblclick', () => {
   else document.exitFullscreen?.();
 });
 
-// ─── Communication: BroadcastChannel + localStorage fallback ──
-let bc = null;
-try { bc = new BroadcastChannel('videomapping'); } catch(e) {}
-
+// ─── Receive data from editor ────────────────────────────────
+// Called directly by the editor via outWin.applyUpdate(data)
 function applyUpdate(data) {
   if (Array.isArray(data)) polys = data;
 }
 
-// BroadcastChannel
-if (bc) {
-  bc.onmessage = e => {
-    if (e.data.type === 'update') applyUpdate(e.data.polys || e.data.polygons);
-    if (e.data.type === 'ping')   bc.postMessage({ type:'ready' });
-  };
-}
-
-// localStorage fallback — poll every 300ms + signal editor we're open
-function lsPing() {
+// Fallback: poll window.opener.polys directly every 300ms
+// (works for file:// where messaging APIs may be restricted)
+setInterval(() => {
   try {
-    // Signal editor
-    localStorage.setItem('mappr_ready', Date.now());
-    // Read state
-    const raw = localStorage.getItem('mappr_state');
-    if (raw) applyUpdate(JSON.parse(raw));
+    if (window.opener && window.opener.polys) {
+      polys = window.opener.polys.map(p => ({
+        id: p.id, points: p.points, texture: p.texture,
+        opacity: p.opacity, speed: p.speed, blend: p.blend,
+        visible: p.visible, color: p.color,
+      }));
+    }
   } catch(e) {}
-}
-lsPing();
-setInterval(lsPing, 300);
-
-window.addEventListener('beforeunload', () => {
-  if (bc) bc.postMessage({ type:'closed' });
-  try { localStorage.setItem('mappr_closed', Date.now()); } catch(e) {}
-});
+}, 300);
 
 // ─── Texture renderers ───────────────────────────────────────
 function drawTex(c2, id, w, h, t, polyId) {
