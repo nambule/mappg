@@ -280,6 +280,104 @@ input[type=checkbox] {
   cursor:pointer;
 }
 
+.cchip {
+  flex:1;
+  height:24px;
+  border:1px solid var(--border);
+  border-radius:3px;
+  background:var(--bg);
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+}
+
+.cchip::after {
+  content:'';
+  position:absolute;
+  inset:3px;
+  border-radius:2px;
+  background:var(--chip, #000);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.cpop {
+  position:fixed;
+  width:220px;
+  background:var(--panel);
+  border:1px solid var(--border-hi);
+  border-radius:8px;
+  padding:10px;
+  box-shadow:0 14px 40px rgba(0,0,0,.45);
+  z-index:200;
+}
+
+.cpop[hidden] { display:none; }
+
+.cphead {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.cppreview {
+  width:34px;
+  height:22px;
+  border-radius:4px;
+  border:1px solid var(--border-hi);
+  background:var(--chip, #000);
+}
+
+.cpactions {
+  display:flex;
+  gap:6px;
+  margin-bottom:10px;
+}
+
+.cpactions .pmini {
+  flex:1;
+}
+
+.cphex {
+  width:100%;
+  height:28px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  background:var(--bg);
+  color:var(--text);
+  font:inherit;
+  padding:0 8px;
+  margin-bottom:10px;
+}
+
+.cprow {
+  display:grid;
+  grid-template-columns:12px 1fr 28px;
+  gap:8px;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.cprow span {
+  font-size:10px;
+  color:var(--text-dim);
+}
+
+.cpsw {
+  display:grid;
+  grid-template-columns:repeat(6, 1fr);
+  gap:6px;
+  margin-top:8px;
+}
+
+.cpsw button {
+  height:18px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  cursor:pointer;
+}
+
 .vbtn {
   width:100%; padding:7px;
   background:var(--bg); border:1px dashed var(--border-hi);
@@ -384,15 +482,15 @@ input[type=checkbox] {
           </div>
           <div class="pr">
             <span class="pl">Color A</span>
-            <input type="color" id="col-a" value="#00e5ff" oninput="setProp('colorA', this.value)">
+            <button class="cchip" type="button" id="col-a" onclick="openColorPopover('colorA', event)"></button>
           </div>
           <div class="pr">
             <span class="pl">Color B</span>
-            <input type="color" id="col-b" value="#a855f7" oninput="setProp('colorB', this.value)">
+            <button class="cchip" type="button" id="col-b" onclick="openColorPopover('colorB', event)"></button>
           </div>
           <div class="pr">
             <span class="pl">Bg</span>
-            <input type="color" id="col-bg" value="#05070c" oninput="setProp('colorBg', this.value)">
+            <button class="cchip" type="button" id="col-bg" onclick="openColorPopover('colorBg', event)"></button>
           </div>
           <div class="pr">
             <span class="pl">Rotate</span>
@@ -436,6 +534,51 @@ input[type=checkbox] {
   </div>
 </div>
 
+<div class="cpop" id="color-pop" hidden>
+  <div class="cphead">
+    <div class="cppreview" id="cp-preview"></div>
+    <button class="pmini" type="button" onclick="closeColorPopover()">Close</button>
+  </div>
+  <div class="cpactions">
+    <button class="pmini" type="button" onclick="randomizeShapeColors()">Randomize 3</button>
+  </div>
+  <input class="cphex" id="cp-hex" value="#000000" oninput="applyColorHex(this.value)">
+  <div class="cprow">
+    <span>R</span>
+    <input type="range" id="cp-r" min="0" max="255" value="0" oninput="applyColorChannels()">
+    <span id="cp-rv">0</span>
+  </div>
+  <div class="cprow">
+    <span>G</span>
+    <input type="range" id="cp-g" min="0" max="255" value="0" oninput="applyColorChannels()">
+    <span id="cp-gv">0</span>
+  </div>
+  <div class="cprow">
+    <span>B</span>
+    <input type="range" id="cp-b" min="0" max="255" value="0" oninput="applyColorChannels()">
+    <span id="cp-bv">0</span>
+  </div>
+  <div class="cpsw">
+    <button type="button" style="background:#ffffff" onclick="setPopoverColor('#ffffff')"></button>
+    <button type="button" style="background:#000000" onclick="setPopoverColor('#000000')"></button>
+    <button type="button" style="background:#808080" onclick="setPopoverColor('#808080')"></button>
+    <button type="button" style="background:#ff0000" onclick="setPopoverColor('#ff0000')"></button>
+    <button type="button" style="background:#ff6b35" onclick="setPopoverColor('#ff6b35')"></button>
+    <button type="button" style="background:#ffa500" onclick="setPopoverColor('#ffa500')"></button>
+    <button type="button" style="background:#ffd700" onclick="setPopoverColor('#ffd700')"></button>
+    <button type="button" style="background:#ffff00" onclick="setPopoverColor('#ffff00')"></button>
+    <button type="button" style="background:#00ff00" onclick="setPopoverColor('#00ff00')"></button>
+    <button type="button" style="background:#00e5a0" onclick="setPopoverColor('#00e5a0')"></button>
+    <button type="button" style="background:#00e5ff" onclick="setPopoverColor('#00e5ff')"></button>
+    <button type="button" style="background:#0000ff" onclick="setPopoverColor('#0000ff')"></button>
+    <button type="button" style="background:#4b0082" onclick="setPopoverColor('#4b0082')"></button>
+    <button type="button" style="background:#a855f7" onclick="setPopoverColor('#a855f7')"></button>
+    <button type="button" style="background:#ff00ff" onclick="setPopoverColor('#ff00ff')"></button>
+    <button type="button" style="background:#ffc0cb" onclick="setPopoverColor('#ffc0cb')"></button>
+    <button type="button" style="background:#05070c" onclick="setPopoverColor('#05070c')"></button>
+  </div>
+</div>
+
 <!-- STATUS BAR -->
 <div id="sb">
   <div class="si">TOOL: <span id="st-tool">DRAW</span></div>
@@ -475,9 +618,11 @@ let wip      = [];       // work-in-progress points
 let mouse    = { x:0, y:0 };
 let dragging = null;     // { type:'vertex'|'poly', polyId, vertIdx?, startMouse?, startPts? }
 let hoverEdit = null;    // { type:'vertex'|'edge', polyId, vertIdx?, insertIdx?, x, y }
+let colorPopover = { key:null };
 let videos   = {};       // polyId → <video>
 let colorN   = 0;
 const COLORS = ['#ff3030','#ff6b35','#f7c948','#00e5a0','#00e5ff','#a855f7','#ff69b4','#88aaff'];
+const PICKER_SWATCHES = ['#ffffff','#000000','#808080','#ff0000','#ff6b35','#ffa500','#ffd700','#ffff00','#00ff00','#00e5a0','#00e5ff','#0000ff','#4b0082','#a855f7','#ff00ff','#ffc0cb','#05070c'];
 const DEFAULT_TEXTURE_COLORS = {
   colorA: '#00e5ff',
   colorB: '#a855f7',
@@ -519,6 +664,7 @@ const TEXTURES = [
   { id:'matrix',  name:'Matrix'   },
   { id:'checker', name:'Checker'  },
   { id:'fire',    name:'Fire'     },
+  { id:'firecamp',name:'Firecamp' },
   { id:'noise',   name:'Noise'    },
   { id:'rainbow', name:'Rainbow'  },
   { id:'stars',   name:'Stars'    },
@@ -531,6 +677,7 @@ const TEXTURES = [
   { id:'halftone',name:'Halftone' },
   { id:'chevrons',name:'Chevrons' },
   { id:'beams',   name:'Beams'    },
+  { id:'cascade', name:'Cascade'  },
   { id:'video',   name:'Video'    },
 ];
 
@@ -541,6 +688,7 @@ function setTool(t) {
   tool = t;
   if (t !== 'draw') { drawing = false; wip = []; }
   if (t !== 'select') hoverEdit = null;
+  if (t !== 'select') closeColorPopover();
   document.getElementById('btn-draw').classList.toggle('on', t==='draw');
   document.getElementById('btn-select').classList.toggle('on', t==='select');
   document.getElementById('st-tool').textContent = t.toUpperCase();
@@ -566,7 +714,16 @@ document.addEventListener('keydown', e => {
   if (e.key==='s'||e.key==='S') setTool('select');
   if (e.key==='c'||e.key==='C') toggleHoveredEdgeCurve();
   if (e.key==='x'||e.key==='X'||e.key==='Delete') deleteSelected();
+  if (e.key==='Escape') closeColorPopover();
   if (e.key==='Escape') { drawing=false; wip=[]; updateHint(); }
+});
+
+document.addEventListener('mousedown', e => {
+  const pop = document.getElementById('color-pop');
+  if (pop.hidden) return;
+  if (pop.contains(e.target)) return;
+  if (e.target.closest('.cchip')) return;
+  closeColorPopover();
 });
 
 // ─────────────────────────────────────────────
@@ -744,6 +901,7 @@ function select(id) {
   } else {
     tc.style.display='none'; ns.style.display='block';
     syncEdgeCurveUI();
+    closeColorPopover();
   }
 }
 
@@ -754,9 +912,9 @@ function syncPropsUI(p) {
   document.getElementById('sl-sp').value = Math.round(p.speed*100);
   document.getElementById('vsp').textContent = p.speed.toFixed(1)+'x';
   document.getElementById('sel-blend').value = p.blend;
-  document.getElementById('col-a').value = p.colorA || DEFAULT_TEXTURE_COLORS.colorA;
-  document.getElementById('col-b').value = p.colorB || DEFAULT_TEXTURE_COLORS.colorB;
-  document.getElementById('col-bg').value = p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg;
+  document.getElementById('col-a').style.setProperty('--chip', p.colorA || DEFAULT_TEXTURE_COLORS.colorA);
+  document.getElementById('col-b').style.setProperty('--chip', p.colorB || DEFAULT_TEXTURE_COLORS.colorB);
+  document.getElementById('col-bg').style.setProperty('--chip', p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg);
   document.getElementById('sl-rot').value = Math.round(p.rotation||0);
   document.getElementById('vrot').textContent = `${Math.round(p.rotation||0)}°`;
   document.getElementById('sl-tx').value = Math.round(p.tiltX||0);
@@ -777,11 +935,98 @@ function setProp(key, val) {
   const p = polys.find(p=>p.id===selId);
   if (!p) return;
   p[key] = val;
+  if (key === 'colorA') document.getElementById('col-a').style.setProperty('--chip', val);
+  if (key === 'colorB') document.getElementById('col-b').style.setProperty('--chip', val);
+  if (key === 'colorBg') document.getElementById('col-bg').style.setProperty('--chip', val);
   if (key==='texture') {
     document.querySelectorAll('.tc').forEach(c=>c.classList.toggle('on', c.dataset.id===val));
     document.getElementById('vsec').style.display = val==='video'?'block':'none';
   }
   broadcast();
+}
+
+function openColorPopover(key, event) {
+  const p = polys.find(poly=>poly.id===selId);
+  if (!p) return;
+  const pop = document.getElementById('color-pop');
+  const color = p[key] || DEFAULT_TEXTURE_COLORS[key];
+  colorPopover.key = key;
+  setPopoverColor(color, false);
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  const left = Math.min(window.innerWidth - 232, Math.max(12, rect.left - 12));
+  const top = Math.min(window.innerHeight - 260, Math.max(12, rect.bottom + 8));
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.hidden = false;
+}
+
+function closeColorPopover() {
+  document.getElementById('color-pop').hidden = true;
+  colorPopover.key = null;
+}
+
+function setPopoverColor(hex, apply=true) {
+  const safe = normalizeHex(hex);
+  const { r, g, b } = hexToRgb(safe);
+  document.getElementById('cp-preview').style.setProperty('--chip', safe);
+  document.getElementById('cp-hex').value = safe;
+  document.getElementById('cp-r').value = r;
+  document.getElementById('cp-g').value = g;
+  document.getElementById('cp-b').value = b;
+  document.getElementById('cp-rv').textContent = r;
+  document.getElementById('cp-gv').textContent = g;
+  document.getElementById('cp-bv').textContent = b;
+  if (apply) commitPopoverColor(safe);
+}
+
+function applyColorChannels() {
+  const r = +document.getElementById('cp-r').value;
+  const g = +document.getElementById('cp-g').value;
+  const b = +document.getElementById('cp-b').value;
+  const hex = rgbToHex(r, g, b);
+  setPopoverColor(hex);
+}
+
+function applyColorHex(hex) {
+  if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return;
+  setPopoverColor(hex);
+}
+
+function commitPopoverColor(hex) {
+  if (!colorPopover.key) return;
+  setProp(colorPopover.key, normalizeHex(hex));
+}
+
+function randomizeShapeColors() {
+  const p = polys.find(poly=>poly.id===selId);
+  if (!p) return;
+
+  const accentPool = PICKER_SWATCHES.filter(c => c !== '#000000' && c !== '#ffffff' && c !== '#808080' && c !== '#05070c');
+  const bgPool = ['#05070c', '#000000', '#111827', '#1a1a1a', '#202430'];
+  const colorA = accentPool[Math.floor(Math.random() * accentPool.length)];
+  let colorB = accentPool[Math.floor(Math.random() * accentPool.length)];
+  if (colorB === colorA) colorB = accentPool[(accentPool.indexOf(colorA) + 5) % accentPool.length];
+  const colorBg = bgPool[Math.floor(Math.random() * bgPool.length)];
+
+  setProp('colorA', colorA);
+  setProp('colorB', colorB);
+  setProp('colorBg', colorBg);
+
+  if (colorPopover.key) {
+    const current = p[colorPopover.key] || DEFAULT_TEXTURE_COLORS[colorPopover.key];
+    setPopoverColor(current, false);
+  }
+}
+
+function normalizeHex(hex) {
+  const raw = String(hex || '').trim();
+  const normalized = raw.startsWith('#') ? raw : `#${raw}`;
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : '#000000';
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('')}`;
 }
 
 function normalizeSegmentCurves(p) {
@@ -987,24 +1232,26 @@ function drawTex(ctx2, id, w, h, t, polyId, poly) {
   const pal = texturePalette(poly);
   switch(id) {
     case 'lava':    texLava(ctx2,w,h,t,pal); break;
-    case 'ocean':   texOcean(ctx2,w,h,t); break;
+    case 'ocean':   texOcean(ctx2,w,h,t,pal); break;
     case 'neon':    texNeon(ctx2,w,h,t,pal); break;
     case 'wire':    texWire(ctx2,w,h,t,pal); break;
-    case 'matrix':  texMatrix(ctx2,w,h,t); break;
+    case 'matrix':  texMatrix(ctx2,w,h,t,pal); break;
     case 'checker': texChecker(ctx2,w,h,t,pal); break;
-    case 'fire':    texFire(ctx2,w,h,t); break;
-    case 'noise':   texNoise(ctx2,w,h,t); break;
+    case 'fire':    texFire(ctx2,w,h,t,pal); break;
+    case 'firecamp': texFirecamp(ctx2,w,h,t,pal); break;
+    case 'noise':   texNoise(ctx2,w,h,t,pal); break;
     case 'rainbow': texRainbow(ctx2,w,h,t,pal); break;
     case 'stars':   texStars(ctx2,w,h,t,pal); break;
     case 'sweep':   texSweep(ctx2,w,h,t,pal); break;
-    case 'plasma':  texPlasma(ctx2,w,h,t); break;
-    case 'radar':   texRadar(ctx2,w,h,t); break;
-    case 'stripes': texStripes(ctx2,w,h,t); break;
-    case 'marble':  texMarble(ctx2,w,h,t); break;
-    case 'rings':   texRings(ctx2,w,h,t); break;
-    case 'halftone': texHalftone(ctx2,w,h,t); break;
-    case 'chevrons': texChevrons(ctx2,w,h,t); break;
-    case 'beams':   texBeams(ctx2,w,h,t); break;
+    case 'plasma':  texPlasma(ctx2,w,h,t,pal); break;
+    case 'radar':   texRadar(ctx2,w,h,t,pal); break;
+    case 'stripes': texStripes(ctx2,w,h,t,pal); break;
+    case 'marble':  texMarble(ctx2,w,h,t,pal); break;
+    case 'rings':   texRings(ctx2,w,h,t,pal); break;
+    case 'halftone': texHalftone(ctx2,w,h,t,pal); break;
+    case 'chevrons': texChevrons(ctx2,w,h,t,pal); break;
+    case 'beams':   texBeams(ctx2,w,h,t,pal); break;
+    case 'cascade': texCascade(ctx2,w,h,t,pal,polyId); break;
     case 'video':   texVideo(ctx2,w,h,polyId); break;
   }
 }
@@ -1051,6 +1298,35 @@ function alpha(hex, a) {
   return `rgba(${c.r},${c.g},${c.b},${a})`;
 }
 
+function rand01(seed) {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+function drawShard(ctx2, x, y, size, kind, color, rotation=0) {
+  ctx2.save();
+  ctx2.translate(x, y);
+  ctx2.rotate(rotation);
+  ctx2.fillStyle = color;
+  ctx2.beginPath();
+  if (kind === 0) {
+    ctx2.rect(-size * 0.5, -size * 0.5, size, size);
+  } else if (kind === 1) {
+    ctx2.moveTo(0, -size * 0.6);
+    ctx2.lineTo(size * 0.56, size * 0.42);
+    ctx2.lineTo(-size * 0.56, size * 0.42);
+    ctx2.closePath();
+  } else {
+    ctx2.moveTo(0, -size * 0.62);
+    ctx2.lineTo(size * 0.48, 0);
+    ctx2.lineTo(0, size * 0.62);
+    ctx2.lineTo(-size * 0.48, 0);
+    ctx2.closePath();
+  }
+  ctx2.fill();
+  ctx2.restore();
+}
+
 function texLava(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
     const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
@@ -1066,13 +1342,17 @@ function texLava(ctx2, w, h, t, pal) {
   ctx2.drawImage(tmp, 0, 0, w, h);
 }
 
-function texOcean(ctx2, w, h, t) {
+function texOcean(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
+    const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
     for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
       const nx=x/sw, ny=y/sh;
       const v = (Math.sin(nx*6-t*1.2)*Math.cos(ny*4+t*.5)+Math.sin(nx*3+ny*5-t)*.5+2)/4;
       const i=(y*sw+x)*4;
-      d[i]=0; d[i+1]=Math.min(255,v*120+60); d[i+2]=Math.min(255,v*200+80); d[i+3]=255;
+      d[i]=Math.round(bg.r * (1-v) + ca.r * v);
+      d[i+1]=Math.round(bg.g * (1-v) + ((ca.g + cb.g) * 0.5 + 30) * v);
+      d[i+2]=Math.round(bg.b * (1-v) + cb.b * v);
+      d[i+3]=255;
     }
   }, w, h);
   ctx2.drawImage(tmp, 0, 0, w, h);
@@ -1120,8 +1400,8 @@ function texWire(ctx2, w, h, t, pal) {
   }
 }
 
-function texMatrix(ctx2, w, h, t) {
-  ctx2.fillStyle = '#020502';
+function texMatrix(ctx2, w, h, t, pal) {
+  ctx2.fillStyle = pal.bg;
   ctx2.fillRect(0,0,w,h);
   const cols = Math.max(8, Math.floor(w / 18));
   const colW = w / cols;
@@ -1135,7 +1415,7 @@ function texMatrix(ctx2, w, h, t) {
       const yy = y + offset;
       const code = 0x30A0 + ((i * 17 + y / 18) % 96);
       const glow = y > 60 && y < 120 ? 1 : 0.45;
-      ctx2.fillStyle = `rgba(110,255,140,${glow})`;
+      ctx2.fillStyle = alpha(mixColor(pal.a, pal.b, 0.35), glow);
       ctx2.fillText(String.fromCharCode(code), x, yy);
     }
   }
@@ -1153,28 +1433,128 @@ function texChecker(ctx2, w, h, t, pal) {
   }
 }
 
-function texFire(ctx2, w, h, t) {
+function texFire(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
+    const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
     for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
       const ny=1-y/sh, nx=x/sw;
       const fl=Math.sin(nx*10+t*4)*.12+Math.sin(nx*5-t*3)*.09;
       const heat=Math.max(0,Math.min(1,ny+fl));
       let r=0,g=0,b=0;
-      if (heat>.9){r=255;g=255;b=Math.round((heat-.9)*2550);}
-      else if(heat>.6){r=255;g=Math.round((heat-.6)/.3*200);}
-      else if(heat>.3){r=Math.round((heat-.3)/.3*255);}
+      if (heat > 0) {
+        const mid = Math.min(1, heat / 0.6);
+        const hot = Math.max(0, (heat - 0.6) / 0.4);
+        r = Math.round(bg.r * (1-heat) + ca.r * mid + 255 * hot * 0.25);
+        g = Math.round(bg.g * (1-heat) + ca.g * mid + cb.g * hot);
+        b = Math.round(bg.b * (1-heat) + cb.b * heat);
+      }
       const i=(y*sw+x)*4; d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;
     }
   }, w, h);
   ctx2.drawImage(tmp, 0, 0, w, h);
 }
 
-function texNoise(ctx2, w, h, t) {
+function texFirecamp(ctx2, w, h, t, pal) {
+  ctx2.fillStyle = pal.bg;
+  ctx2.fillRect(0, 0, w, h);
+
+  const baseGlow = ctx2.createRadialGradient(w * 0.5, h * 0.88, 0, w * 0.5, h * 0.88, h * 0.42);
+  baseGlow.addColorStop(0, alpha(mixColor(pal.a, '#ffffff', 0.35), 0.55));
+  baseGlow.addColorStop(0.45, alpha(pal.b, 0.22));
+  baseGlow.addColorStop(1, alpha(pal.bg, 0));
+  ctx2.fillStyle = baseGlow;
+  ctx2.fillRect(0, 0, w, h);
+
+  const tongues = Math.max(7, Math.floor(w / 24));
+  for (let i = 0; i < tongues; i++) {
+    const seed = i * 12.37;
+    const sway = Math.sin(t * (1.8 + rand01(seed) * 1.4) + seed) * (8 + rand01(seed + 1) * 18);
+    const flicker = 0.78 + 0.22 * Math.sin(t * (5 + rand01(seed + 2) * 4) + seed * 0.7);
+    const flameH = (h * (0.34 + rand01(seed + 3) * 0.34)) * flicker;
+    const flameW = w * (0.06 + rand01(seed + 4) * 0.07);
+    const x = w * (0.18 + (i / Math.max(1, tongues - 1)) * 0.64) + sway;
+    const y = h * 0.9;
+
+    ctx2.save();
+    ctx2.translate(x, y);
+    ctx2.beginPath();
+    ctx2.moveTo(0, 0);
+    ctx2.bezierCurveTo(
+      flameW, -flameH * 0.18,
+      flameW * 0.78, -flameH * 0.76,
+      0, -flameH
+    );
+    ctx2.bezierCurveTo(
+      -flameW * 0.78, -flameH * 0.76,
+      -flameW, -flameH * 0.18,
+      0, 0
+    );
+    ctx2.closePath();
+
+    const flameGrad = ctx2.createLinearGradient(0, 0, 0, -flameH);
+    flameGrad.addColorStop(0, mixColor(pal.b, '#ffffff', 0.18));
+    flameGrad.addColorStop(0.28, mixColor(pal.a, pal.b, 0.35));
+    flameGrad.addColorStop(0.72, mixColor(pal.a, '#ffd27a', 0.45));
+    flameGrad.addColorStop(1, alpha('#fff4cf', 0.85));
+    ctx2.fillStyle = flameGrad;
+    ctx2.shadowColor = alpha(mixColor(pal.a, pal.b, 0.5), 0.45);
+    ctx2.shadowBlur = 14;
+    ctx2.fill();
+
+    ctx2.beginPath();
+    ctx2.moveTo(0, -flameH * 0.08);
+    ctx2.bezierCurveTo(
+      flameW * 0.42, -flameH * 0.24,
+      flameW * 0.34, -flameH * 0.58,
+      0, -flameH * 0.72
+    );
+    ctx2.bezierCurveTo(
+      -flameW * 0.34, -flameH * 0.58,
+      -flameW * 0.42, -flameH * 0.24,
+      0, -flameH * 0.08
+    );
+    ctx2.closePath();
+    ctx2.fillStyle = alpha('#fff7d6', 0.55);
+    ctx2.shadowBlur = 0;
+    ctx2.fill();
+    ctx2.restore();
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const logY = h * (0.89 + i * 0.015);
+    const logGrad = ctx2.createLinearGradient(w * 0.22, logY, w * 0.78, logY + h * 0.05);
+    logGrad.addColorStop(0, mixColor('#2a1208', pal.bg, 0.35));
+    logGrad.addColorStop(0.5, mixColor('#5a2c12', pal.b, 0.1));
+    logGrad.addColorStop(1, mixColor('#1b0c05', pal.bg, 0.5));
+    ctx2.strokeStyle = logGrad;
+    ctx2.lineWidth = h * 0.035;
+    ctx2.lineCap = 'round';
+    ctx2.beginPath();
+    ctx2.moveTo(w * (0.28 + i * 0.05), logY);
+    ctx2.lineTo(w * (0.72 - i * 0.03), logY - h * 0.02);
+    ctx2.stroke();
+  }
+
+  for (let i = 0; i < 24; i++) {
+    const seed = i * 4.91;
+    const life = (t * (0.16 + rand01(seed) * 0.22) + rand01(seed + 1) * 3) % 1;
+    const x = w * (0.28 + rand01(seed + 2) * 0.44) + Math.sin(t * 2 + seed) * 6;
+    const y = h * 0.86 - life * h * (0.3 + rand01(seed + 3) * 0.32);
+    const r = 1 + rand01(seed + 4) * 2.6;
+    ctx2.beginPath();
+    ctx2.arc(x, y, r, 0, Math.PI * 2);
+    ctx2.fillStyle = alpha(mixColor(pal.a, '#ffd27a', rand01(seed + 5)), 0.25 + (1 - life) * 0.6);
+    ctx2.fill();
+  }
+}
+
+function texNoise(ctx2, w, h, t, pal) {
   const { tmp, sw, sh } = pixelTex((d,sw,sh) => {
     const s=Math.floor(t*30);
     for (let i=0;i<d.length;i+=4){
-      const v=Math.abs((Math.sin(i*127.1+s)*43758.5)%1)*255;
-      d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
+      const v=Math.abs((Math.sin(i*127.1+s)*43758.5)%1);
+      const col = hexToRgb(mixColor(pal.bg, pal.a, v));
+      d[i]=col.r; d[i+1]=col.g; d[i+2]=col.b; d[i+3]=255;
     }
   }, w, h, 2);
   ctx2.imageSmoothingEnabled=false;
@@ -1217,27 +1597,28 @@ function texSweep(ctx2, w, h, t, pal) {
   ctx2.fillStyle=g; ctx2.fillRect(0,0,w,h);
 }
 
-function texPlasma(ctx2, w, h, t) {
+function texPlasma(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
     for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
       const nx=x/sw-.5, ny=y/sh-.5;
       const r=Math.hypot(nx,ny);
       const v=.5+.5*Math.sin(18*r-t*4+Math.sin((nx+ny)*8+t));
       const i=(y*sw+x)*4;
-      d[i]=120+v*120;
-      d[i+1]=40+Math.sin(v*6+t)*50+v*90;
-      d[i+2]=180+Math.cos(v*5-t)*60;
+      const col = hexToRgb(mixColor(mixColor(pal.bg, pal.a, v), pal.b, (Math.sin(v*6+t)+1)/2));
+      d[i]=col.r;
+      d[i+1]=col.g;
+      d[i+2]=col.b;
       d[i+3]=255;
     }
   }, w, h, 3);
   ctx2.drawImage(tmp, 0, 0, w, h);
 }
 
-function texRadar(ctx2, w, h, t) {
+function texRadar(ctx2, w, h, t, pal) {
   const cx=w/2, cy=h/2, r=Math.max(w,h)*0.55;
-  ctx2.fillStyle='#021106';
+  ctx2.fillStyle=pal.bg;
   ctx2.fillRect(0,0,w,h);
-  ctx2.strokeStyle='rgba(30,255,120,.18)';
+  ctx2.strokeStyle=alpha(pal.a,.18);
   ctx2.lineWidth=1;
   for (let i=1;i<=4;i++) {
     ctx2.beginPath();
@@ -1248,8 +1629,8 @@ function texRadar(ctx2, w, h, t) {
   ctx2.beginPath(); ctx2.moveTo(0,cy); ctx2.lineTo(w,cy); ctx2.stroke();
   const a=t*1.4;
   const sweep=ctx2.createRadialGradient(cx,cy,0,cx,cy,r);
-  sweep.addColorStop(0,'rgba(90,255,170,.28)');
-  sweep.addColorStop(1,'rgba(90,255,170,0)');
+  sweep.addColorStop(0,alpha(pal.b,.28));
+  sweep.addColorStop(1,alpha(pal.b,0));
   ctx2.save();
   ctx2.translate(cx,cy);
   ctx2.rotate(a);
@@ -1262,13 +1643,13 @@ function texRadar(ctx2, w, h, t) {
   ctx2.restore();
 }
 
-function texStripes(ctx2, w, h, t) {
-  ctx2.fillStyle='#0d1117';
+function texStripes(ctx2, w, h, t, pal) {
+  ctx2.fillStyle=pal.bg;
   ctx2.fillRect(0,0,w,h);
   const stripeW=Math.max(18,w/10);
   for (let i=-2;i<Math.ceil(w/stripeW)+4;i++) {
     const x=(i*stripeW + (t*70)%stripeW) - stripeW;
-    ctx2.fillStyle=i%2===0 ? '#ff8a00' : '#ffd166';
+    ctx2.fillStyle=i%2===0 ? pal.a : pal.b;
     ctx2.beginPath();
     ctx2.moveTo(x,0);
     ctx2.lineTo(x+stripeW*.55,0);
@@ -1279,41 +1660,42 @@ function texStripes(ctx2, w, h, t) {
   }
 }
 
-function texMarble(ctx2, w, h, t) {
+function texMarble(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
     for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
       const nx=x/sw, ny=y/sh;
       const vein=Math.sin((nx*10+ny*14+t*.35) + plasma(nx*1.2, ny*.9, t*.35)*1.8);
-      const shade=185 + vein*55;
       const i=(y*sw+x)*4;
-      d[i]=shade;
-      d[i+1]=shade-10;
-      d[i+2]=shade+8;
+      const base = mixColor(pal.bg, pal.a, 0.55);
+      const col = hexToRgb(mixColor(base, pal.b, Math.max(0, Math.min(1, (vein + 1) / 2))));
+      d[i]=col.r;
+      d[i+1]=col.g;
+      d[i+2]=col.b;
       d[i+3]=255;
     }
   }, w, h, 3);
   ctx2.drawImage(tmp, 0, 0, w, h);
 }
 
-function texRings(ctx2, w, h, t) {
+function texRings(ctx2, w, h, t, pal) {
   const cx = w / 2, cy = h / 2;
-  ctx2.fillStyle = '#05030a';
+  ctx2.fillStyle = pal.bg;
   ctx2.fillRect(0,0,w,h);
   for (let i = 0; i < 10; i++) {
     const r = (Math.min(w, h) * 0.08) + i * Math.min(w, h) * 0.075 + Math.sin(t * 2 + i) * 6;
     ctx2.beginPath();
     ctx2.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx2.strokeStyle = `hsla(${(t * 80 + i * 28) % 360}, 100%, 70%, 0.75)`;
+    ctx2.strokeStyle = alpha(i % 2 === 0 ? pal.a : pal.b, 0.75);
     ctx2.lineWidth = 4 - i * 0.22;
     ctx2.stroke();
   }
 }
 
-function texHalftone(ctx2, w, h, t) {
+function texHalftone(ctx2, w, h, t, pal) {
   const dot = Math.max(10, w / 18);
   const bg = ctx2.createLinearGradient(0,0,w,h);
-  bg.addColorStop(0, '#111827');
-  bg.addColorStop(1, '#3b0f54');
+  bg.addColorStop(0, pal.bg);
+  bg.addColorStop(1, mixColor(pal.bg, pal.b, 0.6));
   ctx2.fillStyle = bg;
   ctx2.fillRect(0,0,w,h);
   for (let y = 0; y < h + dot; y += dot) {
@@ -1322,19 +1704,19 @@ function texHalftone(ctx2, w, h, t) {
       const r = v * dot * 0.42;
       ctx2.beginPath();
       ctx2.arc(x + (y / dot % 2) * dot * 0.5, y, r, 0, Math.PI * 2);
-      ctx2.fillStyle = 'rgba(255,245,180,0.9)';
+      ctx2.fillStyle = alpha(pal.a, 0.9);
       ctx2.fill();
     }
   }
 }
 
-function texChevrons(ctx2, w, h, t) {
-  ctx2.fillStyle = '#0a0d12';
+function texChevrons(ctx2, w, h, t, pal) {
+  ctx2.fillStyle = pal.bg;
   ctx2.fillRect(0,0,w,h);
   const band = Math.max(24, h / 9);
   for (let i = -2; i < h / band + 4; i++) {
     const y = i * band + (t * 45 % band) - band;
-    ctx2.fillStyle = i % 2 === 0 ? '#00d1ff' : '#ff5f3d';
+    ctx2.fillStyle = i % 2 === 0 ? pal.a : pal.b;
     ctx2.beginPath();
     ctx2.moveTo(0, y + band * 0.5);
     ctx2.lineTo(w * 0.35, y);
@@ -1345,16 +1727,16 @@ function texChevrons(ctx2, w, h, t) {
   }
 }
 
-function texBeams(ctx2, w, h, t) {
-  ctx2.fillStyle = '#060606';
+function texBeams(ctx2, w, h, t, pal) {
+  ctx2.fillStyle = pal.bg;
   ctx2.fillRect(0,0,w,h);
   const cx = w / 2, cy = h / 2;
   for (let i = 0; i < 18; i++) {
     const a = (Math.PI * 2 / 18) * i + t * 0.45;
     const spread = 0.08 + (i % 3) * 0.02;
     const g = ctx2.createLinearGradient(cx, cy, cx + Math.cos(a) * w, cy + Math.sin(a) * h);
-    g.addColorStop(0, `hsla(${(i * 20 + t * 50) % 360},100%,70%,0.9)`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
+    g.addColorStop(0, alpha(i % 2 === 0 ? pal.a : pal.b, 0.9));
+    g.addColorStop(1, alpha(pal.bg, 0));
     ctx2.fillStyle = g;
     ctx2.beginPath();
     ctx2.moveTo(cx, cy);
@@ -1362,6 +1744,50 @@ function texBeams(ctx2, w, h, t) {
     ctx2.lineTo(cx + Math.cos(a + spread) * w * 1.2, cy + Math.sin(a + spread) * h * 1.2);
     ctx2.closePath();
     ctx2.fill();
+  }
+}
+
+function texCascade(ctx2, w, h, t, pal, polyId) {
+  ctx2.fillStyle = pal.bg;
+  ctx2.fillRect(0, 0, w, h);
+
+  const bins = Math.max(18, Math.floor(w / 10));
+  const binW = w / bins;
+  const heights = Array(bins).fill(0);
+  const pieces = Math.max(80, Math.floor((w * h) / 260));
+  const baseSeed = (polyId || 1) * 0.017;
+
+  for (let i=0; i<pieces; i++) {
+    const seed = baseSeed + i * 9.73;
+    const spawnT = i * 0.52;
+    if (t < spawnT) break;
+
+    const size = 8 + rand01(seed + 1) * Math.max(10, w * 0.05);
+    const span = Math.max(1, Math.ceil(size / binW));
+    const startBin = Math.min(bins - span, Math.floor(rand01(seed + 2) * bins));
+    const speed = 36 + rand01(seed + 3) * 28;
+    const rotation = rand01(seed + 4) * Math.PI * 2;
+    const shape = Math.floor(rand01(seed + 5) * 3);
+    const mix = rand01(seed + 6);
+    const color = mixColor(pal.a, pal.b, mix);
+    const support = Math.max(...heights.slice(startBin, startBin + span));
+    if (support >= h - size * 0.8) continue;
+    const impactY = Math.max(size * 0.75, h - support - size * 0.5);
+    const impactT = spawnT + (impactY + size) / speed;
+    const x = (startBin + span * 0.5) * binW;
+
+    if (t < impactT) {
+      const y = -size + (t - spawnT) * speed;
+      drawShard(ctx2, x, y, size, shape, color, rotation + (t - spawnT) * 1.7);
+      continue;
+    }
+
+    drawShard(ctx2, x, impactY, size, shape, color, rotation);
+
+    const stackHeight = Math.max(size * 0.7, size * (0.75 + rand01(seed + 7) * 0.2));
+    for (let b = startBin; b < startBin + span; b++) {
+      heights[b] = Math.min(h, Math.max(heights[b], support + stackHeight));
+    }
   }
 }
 

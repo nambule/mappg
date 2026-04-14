@@ -119,29 +119,60 @@ function alpha(hex, a) {
   return `rgba(${c.r},${c.g},${c.b},${a})`;
 }
 
+function rand01(seed) {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+function drawShard(c2, x, y, size, kind, color, rotation=0) {
+  c2.save();
+  c2.translate(x, y);
+  c2.rotate(rotation);
+  c2.fillStyle = color;
+  c2.beginPath();
+  if (kind === 0) {
+    c2.rect(-size * .5, -size * .5, size, size);
+  } else if (kind === 1) {
+    c2.moveTo(0, -size * .6);
+    c2.lineTo(size * .56, size * .42);
+    c2.lineTo(-size * .56, size * .42);
+    c2.closePath();
+  } else {
+    c2.moveTo(0, -size * .62);
+    c2.lineTo(size * .48, 0);
+    c2.lineTo(0, size * .62);
+    c2.lineTo(-size * .48, 0);
+    c2.closePath();
+  }
+  c2.fill();
+  c2.restore();
+}
+
 function drawTex(c2, id, w, h, t, polyId, poly) {
   if (w<=0||h<=0) return;
   const pal = texturePalette(poly);
   switch(id) {
     case 'lava':    texLava(c2,w,h,t,pal);    break;
-    case 'ocean':   texOcean(c2,w,h,t);   break;
+    case 'ocean':   texOcean(c2,w,h,t,pal);   break;
     case 'neon':    texNeon(c2,w,h,t,pal);    break;
     case 'wire':    texWire(c2,w,h,t,pal);    break;
-    case 'matrix':  texMatrix(c2,w,h,t);  break;
+    case 'matrix':  texMatrix(c2,w,h,t,pal);  break;
     case 'checker': texChecker(c2,w,h,t,pal); break;
-    case 'fire':    texFire(c2,w,h,t);    break;
-    case 'noise':   texNoise(c2,w,h,t);   break;
+    case 'fire':    texFire(c2,w,h,t,pal);    break;
+    case 'firecamp': texFirecamp(c2,w,h,t,pal); break;
+    case 'noise':   texNoise(c2,w,h,t,pal);   break;
     case 'rainbow': texRainbow(c2,w,h,t,pal); break;
     case 'stars':   texStars(c2,w,h,t,pal);   break;
     case 'sweep':   texSweep(c2,w,h,t,pal);   break;
-    case 'plasma':  texPlasma(c2,w,h,t);  break;
-    case 'radar':   texRadar(c2,w,h,t);   break;
-    case 'stripes': texStripes(c2,w,h,t); break;
-    case 'marble':  texMarble(c2,w,h,t);  break;
-    case 'rings':   texRings(c2,w,h,t);   break;
-    case 'halftone': texHalftone(c2,w,h,t); break;
-    case 'chevrons': texChevrons(c2,w,h,t); break;
-    case 'beams':   texBeams(c2,w,h,t);   break;
+    case 'plasma':  texPlasma(c2,w,h,t,pal);  break;
+    case 'radar':   texRadar(c2,w,h,t,pal);   break;
+    case 'stripes': texStripes(c2,w,h,t,pal); break;
+    case 'marble':  texMarble(c2,w,h,t,pal);  break;
+    case 'rings':   texRings(c2,w,h,t,pal);   break;
+    case 'halftone': texHalftone(c2,w,h,t,pal); break;
+    case 'chevrons': texChevrons(c2,w,h,t,pal); break;
+    case 'beams':   texBeams(c2,w,h,t,pal);   break;
+    case 'cascade': texCascade(c2,w,h,t,pal,polyId); break;
     case 'video':   texVideo(c2,w,h,polyId); break;
   }
 }
@@ -169,12 +200,17 @@ function texLava(c2,w,h,t,pal){
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texOcean(c2,w,h,t){
+function texOcean(c2,w,h,t,pal){
   const tmp=mkPix((d,sw,sh)=>{
+    const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
     for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
       const nx=x/sw,ny=y/sh;
       const v=(Math.sin(nx*6-t*1.2)*Math.cos(ny*4+t*.5)+Math.sin(nx*3+ny*5-t)*.5+2)/4;
-      const i=(y*sw+x)*4; d[i]=0;d[i+1]=Math.min(255,v*120+60);d[i+2]=Math.min(255,v*200+80);d[i+3]=255;
+      const i=(y*sw+x)*4;
+      d[i]=Math.round(bg.r * (1-v) + ca.r * v);
+      d[i+1]=Math.round(bg.g * (1-v) + ((ca.g + cb.g) * .5 + 30) * v);
+      d[i+2]=Math.round(bg.b * (1-v) + cb.b * v);
+      d[i+3]=255;
     }
   },w,h,4);
   c2.drawImage(tmp,0,0,w,h);
@@ -215,8 +251,8 @@ function texWire(c2,w,h,t,pal){
   }
 }
 
-function texMatrix(c2,w,h,t){
-  c2.fillStyle='#020502';
+function texMatrix(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   const cols=Math.max(8,Math.floor(w/18));
   const colW=w/cols;
@@ -230,7 +266,7 @@ function texMatrix(c2,w,h,t){
       const yy=y+offset;
       const code=0x30A0+((i*17+y/18)%96);
       const glow=y>60&&y<120?1:.45;
-      c2.fillStyle=`rgba(110,255,140,${glow})`;
+      c2.fillStyle=alpha(mixColor(pal.a, pal.b, .35),glow);
       c2.fillText(String.fromCharCode(code),x,yy);
     }
   }
@@ -248,25 +284,108 @@ function texChecker(c2,w,h,t,pal){
   }
 }
 
-function texFire(c2,w,h,t){
+function texFire(c2,w,h,t,pal){
   const tmp=mkPix((d,sw,sh)=>{
+    const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
     for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
       const ny=1-y/sh,nx=x/sw,fl=Math.sin(nx*10+t*4)*.12+Math.sin(nx*5-t*3)*.09;
       const heat=Math.max(0,Math.min(1,ny+fl));
       let r=0,g=0,b=0;
-      if(heat>.9){r=255;g=255;b=Math.round((heat-.9)*2550);}
-      else if(heat>.6){r=255;g=Math.round((heat-.6)/.3*200);}
-      else if(heat>.3){r=Math.round((heat-.3)/.3*255);}
+      if (heat > 0) {
+        const mid=Math.min(1,heat/.6);
+        const hot=Math.max(0,(heat-.6)/.4);
+        r=Math.round(bg.r*(1-heat)+ca.r*mid+255*hot*.25);
+        g=Math.round(bg.g*(1-heat)+ca.g*mid+cb.g*hot);
+        b=Math.round(bg.b*(1-heat)+cb.b*heat);
+      }
       const i=(y*sw+x)*4;d[i]=r;d[i+1]=g;d[i+2]=b;d[i+3]=255;
     }
   },w,h,4);
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texNoise(c2,w,h,t){
+function texFirecamp(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
+  c2.fillRect(0,0,w,h);
+
+  const baseGlow=c2.createRadialGradient(w*.5,h*.88,0,w*.5,h*.88,h*.42);
+  baseGlow.addColorStop(0,alpha(mixColor(pal.a,'#ffffff',.35),.55));
+  baseGlow.addColorStop(.45,alpha(pal.b,.22));
+  baseGlow.addColorStop(1,alpha(pal.bg,0));
+  c2.fillStyle=baseGlow;
+  c2.fillRect(0,0,w,h);
+
+  const tongues=Math.max(7,Math.floor(w/24));
+  for(let i=0;i<tongues;i++){
+    const seed=i*12.37;
+    const sway=Math.sin(t*(1.8+rand01(seed)*1.4)+seed)*(8+rand01(seed+1)*18);
+    const flicker=.78+.22*Math.sin(t*(5+rand01(seed+2)*4)+seed*.7);
+    const flameH=(h*(.34+rand01(seed+3)*.34))*flicker;
+    const flameW=w*(.06+rand01(seed+4)*.07);
+    const x=w*(.18+(i/Math.max(1,tongues-1))*.64)+sway;
+    const y=h*.9;
+
+    c2.save();
+    c2.translate(x,y);
+    c2.beginPath();
+    c2.moveTo(0,0);
+    c2.bezierCurveTo(flameW,-flameH*.18,flameW*.78,-flameH*.76,0,-flameH);
+    c2.bezierCurveTo(-flameW*.78,-flameH*.76,-flameW,-flameH*.18,0,0);
+    c2.closePath();
+
+    const flameGrad=c2.createLinearGradient(0,0,0,-flameH);
+    flameGrad.addColorStop(0,mixColor(pal.b,'#ffffff',.18));
+    flameGrad.addColorStop(.28,mixColor(pal.a,pal.b,.35));
+    flameGrad.addColorStop(.72,mixColor(pal.a,'#ffd27a',.45));
+    flameGrad.addColorStop(1,alpha('#fff4cf',.85));
+    c2.fillStyle=flameGrad;
+    c2.shadowColor=alpha(mixColor(pal.a,pal.b,.5),.45);
+    c2.shadowBlur=14;
+    c2.fill();
+
+    c2.beginPath();
+    c2.moveTo(0,-flameH*.08);
+    c2.bezierCurveTo(flameW*.42,-flameH*.24,flameW*.34,-flameH*.58,0,-flameH*.72);
+    c2.bezierCurveTo(-flameW*.34,-flameH*.58,-flameW*.42,-flameH*.24,0,-flameH*.08);
+    c2.closePath();
+    c2.fillStyle=alpha('#fff7d6',.55);
+    c2.shadowBlur=0;
+    c2.fill();
+    c2.restore();
+  }
+
+  for(let i=0;i<3;i++){
+    const logY=h*(.89+i*.015);
+    const logGrad=c2.createLinearGradient(w*.22,logY,w*.78,logY+h*.05);
+    logGrad.addColorStop(0,mixColor('#2a1208',pal.bg,.35));
+    logGrad.addColorStop(.5,mixColor('#5a2c12',pal.b,.1));
+    logGrad.addColorStop(1,mixColor('#1b0c05',pal.bg,.5));
+    c2.strokeStyle=logGrad;
+    c2.lineWidth=h*.035;
+    c2.lineCap='round';
+    c2.beginPath();
+    c2.moveTo(w*(.28+i*.05),logY);
+    c2.lineTo(w*(.72-i*.03),logY-h*.02);
+    c2.stroke();
+  }
+
+  for(let i=0;i<24;i++){
+    const seed=i*4.91;
+    const life=(t*(.16+rand01(seed)*.22)+rand01(seed+1)*3)%1;
+    const x=w*(.28+rand01(seed+2)*.44)+Math.sin(t*2+seed)*6;
+    const y=h*.86-life*h*(.3+rand01(seed+3)*.32);
+    const r=1+rand01(seed+4)*2.6;
+    c2.beginPath();
+    c2.arc(x,y,r,0,Math.PI*2);
+    c2.fillStyle=alpha(mixColor(pal.a,'#ffd27a',rand01(seed+5)),.25+(1-life)*.6);
+    c2.fill();
+  }
+}
+
+function texNoise(c2,w,h,t,pal){
   const tmp=mkPix((d,sw,sh)=>{
     const s=Math.floor(t*30);
-    for(let i=0;i<d.length;i+=4){const v=Math.abs((Math.sin(i*127.1+s)*43758.5)%1)*255;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
+    for(let i=0;i<d.length;i+=4){const v=Math.abs((Math.sin(i*127.1+s)*43758.5)%1);const col=hexToRgb(mixColor(pal.bg,pal.a,v));d[i]=col.r;d[i+1]=col.g;d[i+2]=col.b;d[i+3]=255;}
   },w,h,3);
   c2.imageSmoothingEnabled=false; c2.drawImage(tmp,0,0,w,h); c2.imageSmoothingEnabled=true;
 }
@@ -301,27 +420,28 @@ function texSweep(c2,w,h,t,pal){
   c2.fillStyle=g;c2.fillRect(0,0,w,h);
 }
 
-function texPlasma(c2,w,h,t){
+function texPlasma(c2,w,h,t,pal){
   const tmp=mkPix((d,sw,sh)=>{
     for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
       const nx=x/sw-.5, ny=y/sh-.5;
       const r=Math.hypot(nx,ny);
       const v=.5+.5*Math.sin(18*r-t*4+Math.sin((nx+ny)*8+t));
       const i=(y*sw+x)*4;
-      d[i]=120+v*120;
-      d[i+1]=40+Math.sin(v*6+t)*50+v*90;
-      d[i+2]=180+Math.cos(v*5-t)*60;
+      const col=hexToRgb(mixColor(mixColor(pal.bg,pal.a,v),pal.b,(Math.sin(v*6+t)+1)/2));
+      d[i]=col.r;
+      d[i+1]=col.g;
+      d[i+2]=col.b;
       d[i+3]=255;
     }
   },w,h,3);
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texRadar(c2,w,h,t){
+function texRadar(c2,w,h,t,pal){
   const cx=w/2, cy=h/2, r=Math.max(w,h)*0.55;
-  c2.fillStyle='#021106';
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
-  c2.strokeStyle='rgba(30,255,120,.18)';
+  c2.strokeStyle=alpha(pal.a,.18);
   c2.lineWidth=1;
   for(let i=1;i<=4;i++){
     c2.beginPath();
@@ -332,8 +452,8 @@ function texRadar(c2,w,h,t){
   c2.beginPath(); c2.moveTo(0,cy); c2.lineTo(w,cy); c2.stroke();
   const a=t*1.4;
   const sweep=c2.createRadialGradient(cx,cy,0,cx,cy,r);
-  sweep.addColorStop(0,'rgba(90,255,170,.28)');
-  sweep.addColorStop(1,'rgba(90,255,170,0)');
+  sweep.addColorStop(0,alpha(pal.b,.28));
+  sweep.addColorStop(1,alpha(pal.b,0));
   c2.save();
   c2.translate(cx,cy);
   c2.rotate(a);
@@ -346,13 +466,13 @@ function texRadar(c2,w,h,t){
   c2.restore();
 }
 
-function texStripes(c2,w,h,t){
-  c2.fillStyle='#0d1117';
+function texStripes(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   const stripeW=Math.max(18,w/10);
   for(let i=-2;i<Math.ceil(w/stripeW)+4;i++){
     const x=(i*stripeW + (t*70)%stripeW) - stripeW;
-    c2.fillStyle=i%2===0 ? '#ff8a00' : '#ffd166';
+    c2.fillStyle=i%2===0 ? pal.a : pal.b;
     c2.beginPath();
     c2.moveTo(x,0);
     c2.lineTo(x+stripeW*.55,0);
@@ -363,41 +483,42 @@ function texStripes(c2,w,h,t){
   }
 }
 
-function texMarble(c2,w,h,t){
+function texMarble(c2,w,h,t,pal){
   const tmp=mkPix((d,sw,sh)=>{
     for(let y=0;y<sh;y++) for(let x=0;x<sw;x++){
       const nx=x/sw, ny=y/sh;
       const vein=Math.sin((nx*10+ny*14+t*.35) + (Math.sin(nx*8+t*.35)+Math.sin(ny*6+t*.45)+Math.sin((nx+ny)*5+t*.2))*1.8);
-      const shade=185 + vein*55;
       const i=(y*sw+x)*4;
-      d[i]=shade;
-      d[i+1]=shade-10;
-      d[i+2]=shade+8;
+      const base=mixColor(pal.bg,pal.a,.55);
+      const col=hexToRgb(mixColor(base,pal.b,Math.max(0,Math.min(1,(vein+1)/2))));
+      d[i]=col.r;
+      d[i+1]=col.g;
+      d[i+2]=col.b;
       d[i+3]=255;
     }
   },w,h,3);
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texRings(c2,w,h,t){
+function texRings(c2,w,h,t,pal){
   const cx=w/2, cy=h/2;
-  c2.fillStyle='#05030a';
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   for(let i=0;i<10;i++){
     const r=(Math.min(w,h)*.08)+i*Math.min(w,h)*.075+Math.sin(t*2+i)*6;
     c2.beginPath();
     c2.arc(cx,cy,r,0,Math.PI*2);
-    c2.strokeStyle=`hsla(${(t*80+i*28)%360},100%,70%,0.75)`;
+    c2.strokeStyle=alpha(i%2===0 ? pal.a : pal.b,.75);
     c2.lineWidth=4-i*.22;
     c2.stroke();
   }
 }
 
-function texHalftone(c2,w,h,t){
+function texHalftone(c2,w,h,t,pal){
   const dot=Math.max(10,w/18);
   const bg=c2.createLinearGradient(0,0,w,h);
-  bg.addColorStop(0,'#111827');
-  bg.addColorStop(1,'#3b0f54');
+  bg.addColorStop(0,pal.bg);
+  bg.addColorStop(1,mixColor(pal.bg,pal.b,.6));
   c2.fillStyle=bg;
   c2.fillRect(0,0,w,h);
   for(let y=0;y<h+dot;y+=dot){
@@ -406,19 +527,19 @@ function texHalftone(c2,w,h,t){
       const r=v*dot*.42;
       c2.beginPath();
       c2.arc(x+(y/dot%2)*dot*.5,y,r,0,Math.PI*2);
-      c2.fillStyle='rgba(255,245,180,0.9)';
+      c2.fillStyle=alpha(pal.a,.9);
       c2.fill();
     }
   }
 }
 
-function texChevrons(c2,w,h,t){
-  c2.fillStyle='#0a0d12';
+function texChevrons(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   const band=Math.max(24,h/9);
   for(let i=-2;i<h/band+4;i++){
     const y=i*band+(t*45%band)-band;
-    c2.fillStyle=i%2===0?'#00d1ff':'#ff5f3d';
+    c2.fillStyle=i%2===0?pal.a:pal.b;
     c2.beginPath();
     c2.moveTo(0,y+band*.5);
     c2.lineTo(w*.35,y);
@@ -429,16 +550,16 @@ function texChevrons(c2,w,h,t){
   }
 }
 
-function texBeams(c2,w,h,t){
-  c2.fillStyle='#060606';
+function texBeams(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   const cx=w/2, cy=h/2;
   for(let i=0;i<18;i++){
     const a=(Math.PI*2/18)*i+t*.45;
     const spread=.08+(i%3)*.02;
     const g=c2.createLinearGradient(cx,cy,cx+Math.cos(a)*w,cy+Math.sin(a)*h);
-    g.addColorStop(0,`hsla(${(i*20+t*50)%360},100%,70%,0.9)`);
-    g.addColorStop(1,'rgba(0,0,0,0)');
+    g.addColorStop(0,alpha(i%2===0 ? pal.a : pal.b,.9));
+    g.addColorStop(1,alpha(pal.bg,0));
     c2.fillStyle=g;
     c2.beginPath();
     c2.moveTo(cx,cy);
@@ -446,6 +567,50 @@ function texBeams(c2,w,h,t){
     c2.lineTo(cx+Math.cos(a+spread)*w*1.2,cy+Math.sin(a+spread)*h*1.2);
     c2.closePath();
     c2.fill();
+  }
+}
+
+function texCascade(c2,w,h,t,pal,polyId){
+  c2.fillStyle=pal.bg;
+  c2.fillRect(0,0,w,h);
+
+  const bins=Math.max(18,Math.floor(w/10));
+  const binW=w/bins;
+  const heights=Array(bins).fill(0);
+  const pieces=Math.max(80,Math.floor((w*h)/260));
+  const baseSeed=(polyId||1)*0.017;
+
+  for(let i=0;i<pieces;i++){
+    const seed=baseSeed+i*9.73;
+    const spawnT=i*.52;
+    if(t<spawnT) break;
+
+    const size=8+rand01(seed+1)*Math.max(10,w*.05);
+    const span=Math.max(1,Math.ceil(size/binW));
+    const startBin=Math.min(bins-span,Math.floor(rand01(seed+2)*bins));
+    const speed=36+rand01(seed+3)*28;
+    const rotation=rand01(seed+4)*Math.PI*2;
+    const shape=Math.floor(rand01(seed+5)*3);
+    const mix=rand01(seed+6);
+    const color=mixColor(pal.a,pal.b,mix);
+    const support=Math.max(...heights.slice(startBin,startBin+span));
+    if(support>=h-size*.8) continue;
+    const impactY=Math.max(size*.75,h-support-size*.5);
+    const impactT=spawnT+(impactY+size)/speed;
+    const x=(startBin+span*.5)*binW;
+
+    if(t<impactT){
+      const y=-size+(t-spawnT)*speed;
+      drawShard(c2,x,y,size,shape,color,rotation+(t-spawnT)*1.7);
+      continue;
+    }
+
+    drawShard(c2,x,impactY,size,shape,color,rotation);
+
+    const stackHeight=Math.max(size*.7,size*(.75+rand01(seed+7)*.2));
+    for(let b=startBin;b<startBin+span;b++){
+      heights[b]=Math.min(h,Math.max(heights[b],support+stackHeight));
+    }
   }
 }
 
