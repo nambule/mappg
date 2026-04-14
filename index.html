@@ -33,27 +33,13 @@ html, body {
 
 body { display: flex; flex-direction: column; }
 
-/* ── TOOLBAR ── */
-#toolbar {
-  height: 48px;
-  flex-shrink: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 14px;
-  gap: 6px;
-}
-
-.logo { font-size:14px; font-weight:600; letter-spacing:4px; color:var(--accent); margin-right:10px; }
+.logo { font-size:14px; font-weight:600; letter-spacing:4px; color:var(--accent); }
 .logo span { color:var(--text-dim); font-weight:300; }
 
-.sep { width:1px; height:24px; background:var(--border); margin:0 6px; }
-
 .tbtn {
-  width:36px; height:32px;
-  background: transparent;
-  border: 1px solid transparent;
+  height:32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius:4px;
   color: var(--text-dim);
   cursor: pointer;
@@ -61,8 +47,10 @@ body { display: flex; flex-direction: column; }
   font-family: inherit; font-size:11px;
   transition: all .1s;
   position: relative;
+  gap:6px;
+  padding:0 10px;
 }
-.tbtn:hover { background:var(--panel); border-color:var(--border); color:var(--text); }
+.tbtn:hover { background:var(--surface); border-color:var(--border-hi); color:var(--text); }
 .tbtn.on { background:rgba(0,229,255,.08); border-color:var(--accent); color:var(--accent); }
 
 .tbtn svg { width:16px; height:16px; pointer-events:none; }
@@ -75,8 +63,6 @@ body { display: flex; flex-direction: column; }
 }
 .tbtn:hover .tip { opacity:1; }
 
-.sp { flex:1; }
-
 .out-ind { display:flex; align-items:center; gap:8px; font-size:10px; color:var(--text-dim); letter-spacing:1px; }
 .out-dot { width:6px; height:6px; border-radius:50%; background:var(--text-dim); transition:background .3s; }
 .out-dot.live { background:var(--success); box-shadow:0 0 8px var(--success); animation:blink 2s infinite; }
@@ -88,6 +74,7 @@ body { display: flex; flex-direction: column; }
   border:none; border-radius:4px; cursor:pointer;
   font-family:inherit; font-size:11px; font-weight:600; letter-spacing:2px;
   transition:all .15s;
+  width:100%;
 }
 .launch:hover { background:#33eeff; }
 
@@ -137,6 +124,57 @@ body { display: flex; flex-direction: column; }
   width:272px; flex-shrink:0;
   background:var(--panel); border-left:1px solid var(--border);
   display:flex; flex-direction:column; overflow:hidden;
+}
+
+.pblock {
+  padding:12px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  flex-shrink:0;
+}
+
+.pbrand {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.ptools {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.ptools .tbtn {
+  width:100%;
+}
+
+.pactions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.pmini {
+  height:30px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  background:var(--bg);
+  color:var(--text-dim);
+  font-family:inherit;
+  font-size:10px;
+  letter-spacing:1px;
+  cursor:pointer;
+  transition:all .12s;
+}
+
+.pmini:hover {
+  border-color:var(--border-hi);
+  color:var(--text);
+  background:var(--surface);
 }
 
 .ph {
@@ -225,6 +263,23 @@ select {
 }
 select:focus { border-color:var(--accent); }
 
+input[type=color] {
+  flex:1;
+  height:24px;
+  border:1px solid var(--border);
+  background:var(--bg);
+  border-radius:3px;
+  padding:2px;
+  cursor:pointer;
+}
+
+input[type=checkbox] {
+  width:14px;
+  height:14px;
+  accent-color: var(--accent);
+  cursor:pointer;
+}
+
 .vbtn {
   width:100%; padding:7px;
   background:var(--bg); border:1px dashed var(--border-hi);
@@ -245,54 +300,6 @@ select:focus { border-color:var(--accent); }
 </head>
 <body>
 
-<!-- TOOLBAR -->
-<div id="toolbar">
-  <div class="logo">MAPPR <span>/ STUDIO</span></div>
-  <div class="sep"></div>
-
-  <button class="tbtn on" id="btn-draw" onclick="setTool('draw')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
-      <polygon points="8,2 14,11 2,11"/>
-      <circle cx="14" cy="11" r="1.5" fill="currentColor" stroke="none"/>
-    </svg>
-    <span class="tip">Draw [D]</span>
-  </button>
-
-  <button class="tbtn" id="btn-select" onclick="setTool('select')">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
-      <path d="M3.5 2v10l2.5-2 2 4 1.5-.7-2-4 3.5-.3z"/>
-    </svg>
-    <span class="tip">Select [S]</span>
-  </button>
-
-  <div class="sep"></div>
-
-  <button class="tbtn" onclick="deleteSelected()">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
-      <path d="M3 4h10M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/>
-      <path d="M4 4l.6 8.1a1 1 0 001 .9h4.8a1 1 0 001-.9L12 4"/>
-      <line x1="6.5" y1="7" x2="6.5" y2="11"/><line x1="9.5" y1="7" x2="9.5" y2="11"/>
-    </svg>
-    <span class="tip">Delete [X]</span>
-  </button>
-
-  <button class="tbtn" onclick="clearAll()" title="Clear all">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-    </svg>
-    <span class="tip">Clear All</span>
-  </button>
-
-  <div class="sp"></div>
-
-  <div class="out-ind">
-    <div class="out-dot" id="odot"></div>
-    <span id="ostatus">NO OUTPUT</span>
-  </div>
-
-  <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
-</div>
-
 <!-- MAIN -->
 <div id="main">
 
@@ -305,6 +312,41 @@ select:focus { border-color:var(--accent); }
 
   <!-- RIGHT PANEL -->
   <div id="panel">
+    <div class="pblock">
+      <div class="pbrand">
+        <div class="logo">MAPPR <span>/ STUDIO</span></div>
+        <div class="out-ind">
+          <div class="out-dot" id="odot"></div>
+          <span id="ostatus">NO OUTPUT</span>
+        </div>
+      </div>
+
+      <div class="ptools">
+        <button class="tbtn on" id="btn-draw" onclick="setTool('draw')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+            <polygon points="8,2 14,11 2,11"/>
+            <circle cx="14" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+          <span>DRAW</span>
+          <span class="tip">Draw [D]</span>
+        </button>
+
+        <button class="tbtn" id="btn-select" onclick="setTool('select')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+            <path d="M3.5 2v10l2.5-2 2 4 1.5-.7-2-4 3.5-.3z"/>
+          </svg>
+          <span>SELECT</span>
+          <span class="tip">Select [S]</span>
+        </button>
+      </div>
+
+      <div class="pactions">
+        <button class="pmini" onclick="deleteSelected()">DELETE [X]</button>
+        <button class="pmini" onclick="clearAll()">CLEAR ALL</button>
+      </div>
+
+      <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
+    </div>
 
     <div class="ph"><em>◈</em> Polygons <div style="flex:1"></div><span id="pcnt" style="color:var(--accent)">0</span></div>
     <div id="plist"><div class="empty" id="emsg">No polygons yet.<br>Use Draw tool to start.</div></div>
@@ -335,6 +377,52 @@ select:focus { border-color:var(--accent); }
               <option value="lighter">Add</option>
               <option value="lighten">Lighten</option>
             </select>
+          </div>
+          <div class="pr">
+            <span class="pl">Edges</span>
+            <button class="vbtn" type="button" id="btn-edge-curve" onclick="toggleHoveredEdgeCurve()">HOVER EDGE + C</button>
+          </div>
+          <div class="pr">
+            <span class="pl">Color A</span>
+            <input type="color" id="col-a" value="#00e5ff" oninput="setProp('colorA', this.value)">
+          </div>
+          <div class="pr">
+            <span class="pl">Color B</span>
+            <input type="color" id="col-b" value="#a855f7" oninput="setProp('colorB', this.value)">
+          </div>
+          <div class="pr">
+            <span class="pl">Bg</span>
+            <input type="color" id="col-bg" value="#05070c" oninput="setProp('colorBg', this.value)">
+          </div>
+          <div class="pr">
+            <span class="pl">Rotate</span>
+            <input type="range" id="sl-rot" min="-180" max="180" value="0" oninput="setProp('rotation', this.valueAsNumber); document.getElementById('vrot').textContent=this.value+'°'">
+            <span class="pv" id="vrot">0°</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Tilt X</span>
+            <input type="range" id="sl-tx" min="-80" max="80" value="0" oninput="setProp('tiltX', this.valueAsNumber); document.getElementById('vtx').textContent=this.value+'°'">
+            <span class="pv" id="vtx">0°</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Tilt Y</span>
+            <input type="range" id="sl-ty" min="-80" max="80" value="0" oninput="setProp('tiltY', this.valueAsNumber); document.getElementById('vty').textContent=this.value+'°'">
+            <span class="pv" id="vty">0°</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Scale</span>
+            <input type="range" id="sl-sc" min="50" max="250" value="100" oninput="setProp('scale', this.value/100); document.getElementById('vsc').textContent=(this.value/100).toFixed(2)+'x'">
+            <span class="pv" id="vsc">1.00x</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Pan X</span>
+            <input type="range" id="sl-px" min="-100" max="100" value="0" oninput="setProp('offsetX', this.valueAsNumber/100); document.getElementById('vpx').textContent=this.value+'%'">
+            <span class="pv" id="vpx">0%</span>
+          </div>
+          <div class="pr">
+            <span class="pl">Pan Y</span>
+            <input type="range" id="sl-py" min="-100" max="100" value="0" oninput="setProp('offsetY', this.valueAsNumber/100); document.getElementById('vpy').textContent=this.value+'%'">
+            <span class="pv" id="vpy">0%</span>
           </div>
           <div id="vsec" style="display:none">
             <input type="file" id="vfile" accept="video/*" style="display:none" onchange="loadVideo(this)">
@@ -386,9 +474,21 @@ let drawing  = false;
 let wip      = [];       // work-in-progress points
 let mouse    = { x:0, y:0 };
 let dragging = null;     // { type:'vertex'|'poly', polyId, vertIdx?, startMouse?, startPts? }
+let hoverEdit = null;    // { type:'vertex'|'edge', polyId, vertIdx?, insertIdx?, x, y }
 let videos   = {};       // polyId → <video>
 let colorN   = 0;
 const COLORS = ['#ff3030','#ff6b35','#f7c948','#00e5a0','#00e5ff','#a855f7','#ff69b4','#88aaff'];
+const DEFAULT_TEXTURE_COLORS = {
+  colorA: '#00e5ff',
+  colorB: '#a855f7',
+  colorBg: '#05070c',
+};
+
+Object.defineProperty(window, 'mapprState', {
+  get() {
+    return { polys, videos };
+  }
+});
 
 // BroadcastChannel (works in Chrome; may fail on file:// in Safari)
 let bc = null;
@@ -415,11 +515,22 @@ const TEXTURES = [
   { id:'lava',    name:'Lava'     },
   { id:'ocean',   name:'Ocean'    },
   { id:'neon',    name:'Neon Grid'},
+  { id:'wire',    name:'Wireframe'},
+  { id:'matrix',  name:'Matrix'   },
+  { id:'checker', name:'Checker'  },
   { id:'fire',    name:'Fire'     },
   { id:'noise',   name:'Noise'    },
   { id:'rainbow', name:'Rainbow'  },
   { id:'stars',   name:'Stars'    },
   { id:'sweep',   name:'Sweep'    },
+  { id:'plasma',  name:'Plasma'   },
+  { id:'radar',   name:'Radar'    },
+  { id:'stripes', name:'Stripes'  },
+  { id:'marble',  name:'Marble'   },
+  { id:'rings',   name:'Rings'    },
+  { id:'halftone',name:'Halftone' },
+  { id:'chevrons',name:'Chevrons' },
+  { id:'beams',   name:'Beams'    },
   { id:'video',   name:'Video'    },
 ];
 
@@ -429,11 +540,13 @@ const TEXTURES = [
 function setTool(t) {
   tool = t;
   if (t !== 'draw') { drawing = false; wip = []; }
+  if (t !== 'select') hoverEdit = null;
   document.getElementById('btn-draw').classList.toggle('on', t==='draw');
   document.getElementById('btn-select').classList.toggle('on', t==='select');
   document.getElementById('st-tool').textContent = t.toUpperCase();
   wrap.style.cursor = t === 'draw' ? 'crosshair' : 'default';
   updateHint();
+  syncEdgeCurveUI();
 }
 
 function updateHint() {
@@ -443,7 +556,7 @@ function updateHint() {
       ? `${wip.length} pts — double-click or click first point to close`
       : 'Click to start drawing a polygon';
   } else {
-    h.textContent = 'Click to select • Drag vertex or polygon to move';
+    h.textContent = 'Click to select • Drag points or shape • Click edge to add point • Alt-click point to remove • Hover edge + C to curve';
   }
 }
 
@@ -451,6 +564,7 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName==='INPUT' || e.target.tagName==='SELECT') return;
   if (e.key==='d'||e.key==='D') setTool('draw');
   if (e.key==='s'||e.key==='S') setTool('select');
+  if (e.key==='c'||e.key==='C') toggleHoveredEdgeCurve();
   if (e.key==='x'||e.key==='X'||e.key==='Delete') deleteSelected();
   if (e.key==='Escape') { drawing=false; wip=[]; updateHint(); }
 });
@@ -467,6 +581,14 @@ wrap.addEventListener('mousemove', e => {
   const {x,y} = evXY(e);
   mouse.x = x; mouse.y = y;
   document.getElementById('coords').textContent = `X: ${Math.round(x)}  Y: ${Math.round(y)}`;
+
+  if (tool === 'select' && !dragging) {
+    hoverEdit = selId ? getEditTarget(selId, x, y) : null;
+    if (hoverEdit?.type === 'vertex') wrap.style.cursor = e.altKey && !canDeleteVertex(hoverEdit.polyId) ? 'not-allowed' : 'grab';
+    else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
+    else wrap.style.cursor = 'default';
+    syncEdgeCurveUI();
+  }
 
   if (!dragging) return;
 
@@ -486,34 +608,58 @@ wrap.addEventListener('mousemove', e => {
 wrap.addEventListener('mousedown', e => {
   if (tool !== 'select') return;
   const {x,y} = evXY(e);
+  const editTarget = selId ? getEditTarget(selId, x, y) : null;
 
-  // vertex?
-  if (selId) {
-    const p = polys.find(p=>p.id===selId);
-    if (p) {
-      for (let i=0;i<p.points.length;i++) {
-        if (dist(x,y,...p.points[i]) < 9) {
-          dragging = { type:'vertex', polyId:selId, vertIdx:i };
-          return;
-        }
-      }
+  if (editTarget?.type === 'vertex') {
+    if (e.altKey) {
+      deleteVertex(editTarget.polyId, editTarget.vertIdx);
+      hoverEdit = null;
+      wrap.style.cursor = 'default';
+      return;
     }
+    dragging = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.vertIdx };
+    wrap.style.cursor = 'grabbing';
+    return;
   }
+
+  if (editTarget?.type === 'edge') {
+    insertVertex(editTarget.polyId, editTarget.insertIdx, x, y);
+    dragging = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx };
+    hoverEdit = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx, x, y };
+    wrap.style.cursor = 'grabbing';
+    broadcast();
+    return;
+  }
+
   // polygon body?
   for (let i=polys.length-1;i>=0;i--) {
-    if (ptInPoly(x,y,polys[i].points)) {
+    if (ptInPoly(x, y, polys[i].points, normalizeSegmentCurves(polys[i]))) {
       select(polys[i].id);
       dragging = { type:'poly', polyId:polys[i].id,
         startMouse:{x,y}, startPts:polys[i].points.map(p=>[...p]) };
+      wrap.style.cursor = 'grabbing';
       return;
     }
   }
   select(null);
+  hoverEdit = null;
+  syncEdgeCurveUI();
 });
 
 wrap.addEventListener('mouseup', () => {
   if (dragging) { dragging=null; broadcast(); }
-  wrap.style.cursor = tool==='draw' ? 'crosshair' : 'default';
+  hoverEdit = tool === 'select' && selId ? getEditTarget(selId, mouse.x, mouse.y) : null;
+  if (tool === 'draw') wrap.style.cursor = 'crosshair';
+  else if (hoverEdit?.type === 'vertex') wrap.style.cursor = 'grab';
+  else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
+  else wrap.style.cursor = 'default';
+  syncEdgeCurveUI();
+});
+
+wrap.addEventListener('mouseleave', () => {
+  hoverEdit = null;
+  if (!dragging) wrap.style.cursor = tool === 'draw' ? 'crosshair' : 'default';
+  syncEdgeCurveUI();
 });
 
 wrap.addEventListener('click', e => {
@@ -561,6 +707,16 @@ function closePoly() {
     opacity: 1,
     speed: 1,
     blend: 'source-over',
+    segmentCurves: Array(wip.length).fill(false),
+    colorA: DEFAULT_TEXTURE_COLORS.colorA,
+    colorB: DEFAULT_TEXTURE_COLORS.colorB,
+    colorBg: DEFAULT_TEXTURE_COLORS.colorBg,
+    rotation: 0,
+    tiltX: 0,
+    tiltY: 0,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
     visible: true,
     color: COLORS[colorN++ % COLORS.length],
   };
@@ -581,9 +737,13 @@ function select(id) {
   if (id) {
     tc.style.display='block'; ns.style.display='none';
     const p = polys.find(p=>p.id===id);
-    if (p) syncPropsUI(p);
+    if (p) {
+      normalizeSegmentCurves(p);
+      syncPropsUI(p);
+    }
   } else {
     tc.style.display='none'; ns.style.display='block';
+    syncEdgeCurveUI();
   }
 }
 
@@ -594,7 +754,23 @@ function syncPropsUI(p) {
   document.getElementById('sl-sp').value = Math.round(p.speed*100);
   document.getElementById('vsp').textContent = p.speed.toFixed(1)+'x';
   document.getElementById('sel-blend').value = p.blend;
+  document.getElementById('col-a').value = p.colorA || DEFAULT_TEXTURE_COLORS.colorA;
+  document.getElementById('col-b').value = p.colorB || DEFAULT_TEXTURE_COLORS.colorB;
+  document.getElementById('col-bg').value = p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg;
+  document.getElementById('sl-rot').value = Math.round(p.rotation||0);
+  document.getElementById('vrot').textContent = `${Math.round(p.rotation||0)}°`;
+  document.getElementById('sl-tx').value = Math.round(p.tiltX||0);
+  document.getElementById('vtx').textContent = `${Math.round(p.tiltX||0)}°`;
+  document.getElementById('sl-ty').value = Math.round(p.tiltY||0);
+  document.getElementById('vty').textContent = `${Math.round(p.tiltY||0)}°`;
+  document.getElementById('sl-sc').value = Math.round((p.scale??1)*100);
+  document.getElementById('vsc').textContent = `${(p.scale??1).toFixed(2)}x`;
+  document.getElementById('sl-px').value = Math.round((p.offsetX||0)*100);
+  document.getElementById('vpx').textContent = `${Math.round((p.offsetX||0)*100)}%`;
+  document.getElementById('sl-py').value = Math.round((p.offsetY||0)*100);
+  document.getElementById('vpy').textContent = `${Math.round((p.offsetY||0)*100)}%`;
   document.getElementById('vsec').style.display = p.texture==='video' ? 'block':'none';
+  syncEdgeCurveUI();
 }
 
 function setProp(key, val) {
@@ -608,10 +784,73 @@ function setProp(key, val) {
   broadcast();
 }
 
+function normalizeSegmentCurves(p) {
+  if (!p) return [];
+  if (Array.isArray(p.segmentCurves) && p.segmentCurves.length === p.points.length) return p.segmentCurves;
+  const legacyCurve = !!p.curved;
+  p.segmentCurves = Array(p.points.length).fill(legacyCurve);
+  delete p.curved;
+  return p.segmentCurves;
+}
+
+function syncEdgeCurveUI() {
+  const btn = document.getElementById('btn-edge-curve');
+  if (!btn) return;
+  const active = hoverEdit?.type === 'edge' && hoverEdit.polyId === selId;
+  btn.disabled = !active;
+  if (!active) {
+    btn.textContent = 'HOVER EDGE + C';
+    return;
+  }
+  const p = polys.find(poly=>poly.id===selId);
+  const curves = normalizeSegmentCurves(p);
+  btn.textContent = curves[hoverEdit.edgeIdx] ? 'MAKE EDGE STRAIGHT' : 'MAKE EDGE CURVED';
+}
+
+function toggleHoveredEdgeCurve() {
+  if (tool !== 'select' || hoverEdit?.type !== 'edge' || hoverEdit.polyId !== selId) return;
+  const p = polys.find(poly=>poly.id===selId);
+  if (!p) return;
+  const curves = normalizeSegmentCurves(p);
+  curves[hoverEdit.edgeIdx] = !curves[hoverEdit.edgeIdx];
+  syncEdgeCurveUI();
+  broadcast();
+}
+
 function deleteSelected() {
   if (!selId) return;
   polys = polys.filter(p=>p.id!==selId);
   select(null); refreshList(); broadcast();
+}
+
+function canDeleteVertex(polyId) {
+  const p = polys.find(poly=>poly.id===polyId);
+  return !!p && p.points.length > 3;
+}
+
+function insertVertex(polyId, insertIdx, x, y) {
+  const p = polys.find(poly=>poly.id===polyId);
+  if (!p) return;
+  normalizeSegmentCurves(p);
+  const prevIdx = (insertIdx - 1 + p.points.length) % p.points.length;
+  const carryCurve = !!p.segmentCurves[prevIdx];
+  p.points.splice(insertIdx, 0, [x, y]);
+  p.segmentCurves.splice(insertIdx, 0, carryCurve);
+  p.segmentCurves[prevIdx] = carryCurve;
+}
+
+function deleteVertex(polyId, vertIdx) {
+  const p = polys.find(poly=>poly.id===polyId);
+  if (!p || !canDeleteVertex(polyId)) return;
+  normalizeSegmentCurves(p);
+  const prevIdx = (vertIdx - 1 + p.points.length) % p.points.length;
+  const mergedCurve = !!p.segmentCurves[prevIdx] || !!p.segmentCurves[vertIdx];
+  p.points.splice(vertIdx, 1);
+  p.segmentCurves.splice(vertIdx, 1);
+  p.segmentCurves[prevIdx] = mergedCurve;
+  select(polyId);
+  refreshList();
+  broadcast();
 }
 
 function clearAll() {
@@ -699,7 +938,10 @@ function setOutputLive(v) {
 function broadcast() {
   const data = polys.map(p=>({
     id:p.id, points:p.points, texture:p.texture,
-    opacity:p.opacity, speed:p.speed, blend:p.blend,
+    opacity:p.opacity, speed:p.speed, blend:p.blend, segmentCurves:normalizeSegmentCurves(p),
+    colorA:p.colorA, colorB:p.colorB, colorBg:p.colorBg,
+    rotation:p.rotation, tiltX:p.tiltX, tiltY:p.tiltY, scale:p.scale,
+    offsetX:p.offsetX, offsetY:p.offsetY,
     visible:p.visible, color:p.color,
   }));
   // 1. Direct window call (most reliable for file://)
@@ -740,17 +982,29 @@ buildGrid();
 // ─────────────────────────────────────────────
 //  TEXTURE RENDERERS
 // ─────────────────────────────────────────────
-function drawTex(ctx2, id, w, h, t, polyId) {
+function drawTex(ctx2, id, w, h, t, polyId, poly) {
   if (w<=0||h<=0) return;
+  const pal = texturePalette(poly);
   switch(id) {
-    case 'lava':    texLava(ctx2,w,h,t); break;
+    case 'lava':    texLava(ctx2,w,h,t,pal); break;
     case 'ocean':   texOcean(ctx2,w,h,t); break;
-    case 'neon':    texNeon(ctx2,w,h,t); break;
+    case 'neon':    texNeon(ctx2,w,h,t,pal); break;
+    case 'wire':    texWire(ctx2,w,h,t,pal); break;
+    case 'matrix':  texMatrix(ctx2,w,h,t); break;
+    case 'checker': texChecker(ctx2,w,h,t,pal); break;
     case 'fire':    texFire(ctx2,w,h,t); break;
     case 'noise':   texNoise(ctx2,w,h,t); break;
-    case 'rainbow': texRainbow(ctx2,w,h,t); break;
-    case 'stars':   texStars(ctx2,w,h,t); break;
-    case 'sweep':   texSweep(ctx2,w,h,t); break;
+    case 'rainbow': texRainbow(ctx2,w,h,t,pal); break;
+    case 'stars':   texStars(ctx2,w,h,t,pal); break;
+    case 'sweep':   texSweep(ctx2,w,h,t,pal); break;
+    case 'plasma':  texPlasma(ctx2,w,h,t); break;
+    case 'radar':   texRadar(ctx2,w,h,t); break;
+    case 'stripes': texStripes(ctx2,w,h,t); break;
+    case 'marble':  texMarble(ctx2,w,h,t); break;
+    case 'rings':   texRings(ctx2,w,h,t); break;
+    case 'halftone': texHalftone(ctx2,w,h,t); break;
+    case 'chevrons': texChevrons(ctx2,w,h,t); break;
+    case 'beams':   texBeams(ctx2,w,h,t); break;
     case 'video':   texVideo(ctx2,w,h,polyId); break;
   }
 }
@@ -770,12 +1024,43 @@ function pixelTex(fn, w, h, scale=4) {
   return { tmp, sw, sh };
 }
 
-function texLava(ctx2, w, h, t) {
+function texturePalette(p) {
+  return {
+    a: p?.colorA || DEFAULT_TEXTURE_COLORS.colorA,
+    b: p?.colorB || DEFAULT_TEXTURE_COLORS.colorB,
+    bg: p?.colorBg || DEFAULT_TEXTURE_COLORS.colorBg,
+  };
+}
+
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+  return m ? {
+    r: parseInt(m[1], 16),
+    g: parseInt(m[2], 16),
+    b: parseInt(m[3], 16),
+  } : { r: 0, g: 0, b: 0 };
+}
+
+function mixColor(c1, c2, t) {
+  const a = hexToRgb(c1), b = hexToRgb(c2);
+  return `rgb(${Math.round(a.r + (b.r - a.r) * t)}, ${Math.round(a.g + (b.g - a.g) * t)}, ${Math.round(a.b + (b.b - a.b) * t)})`;
+}
+
+function alpha(hex, a) {
+  const c = hexToRgb(hex);
+  return `rgba(${c.r},${c.g},${c.b},${a})`;
+}
+
+function texLava(ctx2, w, h, t, pal) {
   const { tmp } = pixelTex((d,sw,sh) => {
+    const ca = hexToRgb(pal.a), cb = hexToRgb(pal.b), bg = hexToRgb(pal.bg);
     for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
       const v = (plasma(x/sw, y/sh, t)+4)/8;
       const i=(y*sw+x)*4;
-      d[i]=Math.min(255,v*310); d[i+1]=Math.max(0,v*80-40); d[i+2]=0; d[i+3]=255;
+      d[i]=Math.round(bg.r * (1-v) + (ca.r * .4 + cb.r * .6) * v);
+      d[i+1]=Math.round(bg.g * (1-v) + (ca.g * .4 + cb.g * .6) * v);
+      d[i+2]=Math.round(bg.b * (1-v) + (ca.b * .4 + cb.b * .6) * v);
+      d[i+3]=255;
     }
   }, w, h);
   ctx2.drawImage(tmp, 0, 0, w, h);
@@ -793,12 +1078,12 @@ function texOcean(ctx2, w, h, t) {
   ctx2.drawImage(tmp, 0, 0, w, h);
 }
 
-function texNeon(ctx2, w, h, t) {
+function texNeon(ctx2, w, h, t, pal) {
   const gs = Math.max(28, w/18);
   const pulse = .5+.5*Math.sin(t*2);
-  ctx2.fillStyle='#000'; ctx2.fillRect(0,0,w,h);
-  ctx2.strokeStyle=`rgba(0,229,255,${.35+pulse*.4})`; ctx2.lineWidth=.8;
-  ctx2.shadowColor='#00e5ff'; ctx2.shadowBlur=6+pulse*8;
+  ctx2.fillStyle=pal.bg; ctx2.fillRect(0,0,w,h);
+  ctx2.strokeStyle=alpha(pal.a, .35+pulse*.4); ctx2.lineWidth=.8;
+  ctx2.shadowColor=pal.a; ctx2.shadowBlur=6+pulse*8;
   for (let x=0;x<w+gs;x+=gs) {
     const ox=(x+t*35)%(w+gs)-gs;
     ctx2.beginPath(); ctx2.moveTo(ox,0); ctx2.lineTo(ox,h); ctx2.stroke();
@@ -809,8 +1094,63 @@ function texNeon(ctx2, w, h, t) {
   }
   ctx2.shadowBlur=0;
   const g=ctx2.createLinearGradient(0,h*.45,0,h);
-  g.addColorStop(0,`rgba(168,85,247,${.35+pulse*.25})`); g.addColorStop(1,'rgba(0,0,0,0)');
+  g.addColorStop(0,alpha(pal.b, .35+pulse*.25)); g.addColorStop(1,alpha(pal.bg, 0));
   ctx2.fillStyle=g; ctx2.fillRect(0,h*.45,w,h);
+}
+
+function texWire(ctx2, w, h, t, pal) {
+  const step = Math.max(24, w / 14);
+  ctx2.fillStyle = pal.bg;
+  ctx2.fillRect(0,0,w,h);
+  ctx2.strokeStyle = alpha(pal.a, .45);
+  ctx2.lineWidth = 1;
+  for (let y = -h; y < h * 1.5; y += step) {
+    const yy = y + (t * 40 % step);
+    ctx2.beginPath();
+    ctx2.moveTo(0, yy);
+    ctx2.lineTo(w, yy - h * 0.18);
+    ctx2.stroke();
+  }
+  for (let x = -w; x < w * 2; x += step) {
+    const xx = x + (t * 65 % step);
+    ctx2.beginPath();
+    ctx2.moveTo(xx, h);
+    ctx2.lineTo(w / 2 + (xx - w / 2) * 0.18, h * 0.22);
+    ctx2.stroke();
+  }
+}
+
+function texMatrix(ctx2, w, h, t) {
+  ctx2.fillStyle = '#020502';
+  ctx2.fillRect(0,0,w,h);
+  const cols = Math.max(8, Math.floor(w / 18));
+  const colW = w / cols;
+  ctx2.font = `${Math.max(10, colW * 0.85)}px monospace`;
+  ctx2.textBaseline = 'top';
+  for (let i = 0; i < cols; i++) {
+    const x = i * colW;
+    const speed = 30 + (i % 7) * 12;
+    const offset = (t * speed * 22 + i * 47) % (h + 140);
+    for (let y = -120; y < h + 40; y += 18) {
+      const yy = y + offset;
+      const code = 0x30A0 + ((i * 17 + y / 18) % 96);
+      const glow = y > 60 && y < 120 ? 1 : 0.45;
+      ctx2.fillStyle = `rgba(110,255,140,${glow})`;
+      ctx2.fillText(String.fromCharCode(code), x, yy);
+    }
+  }
+}
+
+function texChecker(ctx2, w, h, t, pal) {
+  const size = Math.max(20, w / 10);
+  const shift = (t * 35) % (size * 2);
+  for (let y = -size; y < h + size; y += size) {
+    for (let x = -size; x < w + size; x += size) {
+      const on = ((Math.floor((x + shift) / size) + Math.floor(y / size)) % 2) === 0;
+      ctx2.fillStyle = on ? pal.a : pal.bg;
+      ctx2.fillRect(x, y, size, size);
+    }
+  }
 }
 
 function texFire(ctx2, w, h, t) {
@@ -842,37 +1182,187 @@ function texNoise(ctx2, w, h, t) {
   ctx2.imageSmoothingEnabled=true;
 }
 
-function texRainbow(ctx2, w, h, t) {
+function texRainbow(ctx2, w, h, t, pal) {
   const g=ctx2.createLinearGradient(0,0,w,h);
-  for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${(i*60+t*55)%360},100%,55%)`);
+  g.addColorStop(0, pal.a);
+  g.addColorStop(.5, mixColor(pal.a, pal.b, .5));
+  g.addColorStop(1, pal.b);
   ctx2.fillStyle=g; ctx2.fillRect(0,0,w,h);
 }
 
-function texStars(ctx2, w, h, t) {
-  ctx2.fillStyle='#000'; ctx2.fillRect(0,0,w,h);
+function texStars(ctx2, w, h, t, pal) {
+  ctx2.fillStyle=pal.bg; ctx2.fillRect(0,0,w,h);
   for(let i=0;i<180;i++){
     const s=i*1234.5;
     const sx=((Math.sin(s)*.5+.5)*w*5+t*(18+i%25)*1.2)%w;
     const sy=(Math.cos(s*1.3)*.5+.5)*h;
     const r=.4+(i%5)*.45;
-    ctx2.fillStyle=`rgba(255,255,255,${.4+.6*Math.abs(Math.sin(t*1.5+i))})`;
+    ctx2.fillStyle=alpha(i%2 ? pal.a : pal.b, .4+.6*Math.abs(Math.sin(t*1.5+i)));
     ctx2.beginPath(); ctx2.arc(sx,sy,r,0,Math.PI*2); ctx2.fill();
   }
 }
 
-function texSweep(ctx2, w, h, t) {
+function texSweep(ctx2, w, h, t, pal) {
   const phase=(t*.28)%1, x=phase*(w+200)-100;
   const bg=ctx2.createLinearGradient(0,0,0,h);
-  bg.addColorStop(0,`hsl(${(t*28)%360},65%,14%)`);
-  bg.addColorStop(1,`hsl(${(t*28+130)%360},65%,6%)`);
+  bg.addColorStop(0,pal.bg);
+  bg.addColorStop(1,mixColor(pal.bg, pal.b, .35));
   ctx2.fillStyle=bg; ctx2.fillRect(0,0,w,h);
   const g=ctx2.createLinearGradient(x-120,0,x+120,0);
-  g.addColorStop(0,'rgba(168,85,247,0)');
-  g.addColorStop(.3,'rgba(168,85,247,.85)');
+  g.addColorStop(0,alpha(pal.b,0));
+  g.addColorStop(.3,alpha(pal.b,.85));
   g.addColorStop(.5,'rgba(255,255,255,1)');
-  g.addColorStop(.7,'rgba(0,229,255,.85)');
-  g.addColorStop(1,'rgba(0,229,255,0)');
+  g.addColorStop(.7,alpha(pal.a,.85));
+  g.addColorStop(1,alpha(pal.a,0));
   ctx2.fillStyle=g; ctx2.fillRect(0,0,w,h);
+}
+
+function texPlasma(ctx2, w, h, t) {
+  const { tmp } = pixelTex((d,sw,sh) => {
+    for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
+      const nx=x/sw-.5, ny=y/sh-.5;
+      const r=Math.hypot(nx,ny);
+      const v=.5+.5*Math.sin(18*r-t*4+Math.sin((nx+ny)*8+t));
+      const i=(y*sw+x)*4;
+      d[i]=120+v*120;
+      d[i+1]=40+Math.sin(v*6+t)*50+v*90;
+      d[i+2]=180+Math.cos(v*5-t)*60;
+      d[i+3]=255;
+    }
+  }, w, h, 3);
+  ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texRadar(ctx2, w, h, t) {
+  const cx=w/2, cy=h/2, r=Math.max(w,h)*0.55;
+  ctx2.fillStyle='#021106';
+  ctx2.fillRect(0,0,w,h);
+  ctx2.strokeStyle='rgba(30,255,120,.18)';
+  ctx2.lineWidth=1;
+  for (let i=1;i<=4;i++) {
+    ctx2.beginPath();
+    ctx2.arc(cx,cy,r*i/4,0,Math.PI*2);
+    ctx2.stroke();
+  }
+  ctx2.beginPath(); ctx2.moveTo(cx,0); ctx2.lineTo(cx,h); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(0,cy); ctx2.lineTo(w,cy); ctx2.stroke();
+  const a=t*1.4;
+  const sweep=ctx2.createRadialGradient(cx,cy,0,cx,cy,r);
+  sweep.addColorStop(0,'rgba(90,255,170,.28)');
+  sweep.addColorStop(1,'rgba(90,255,170,0)');
+  ctx2.save();
+  ctx2.translate(cx,cy);
+  ctx2.rotate(a);
+  ctx2.beginPath();
+  ctx2.moveTo(0,0);
+  ctx2.arc(0,0,r,-.22,.22);
+  ctx2.closePath();
+  ctx2.fillStyle=sweep;
+  ctx2.fill();
+  ctx2.restore();
+}
+
+function texStripes(ctx2, w, h, t) {
+  ctx2.fillStyle='#0d1117';
+  ctx2.fillRect(0,0,w,h);
+  const stripeW=Math.max(18,w/10);
+  for (let i=-2;i<Math.ceil(w/stripeW)+4;i++) {
+    const x=(i*stripeW + (t*70)%stripeW) - stripeW;
+    ctx2.fillStyle=i%2===0 ? '#ff8a00' : '#ffd166';
+    ctx2.beginPath();
+    ctx2.moveTo(x,0);
+    ctx2.lineTo(x+stripeW*.55,0);
+    ctx2.lineTo(x+stripeW*1.35,h);
+    ctx2.lineTo(x+stripeW*.8,h);
+    ctx2.closePath();
+    ctx2.fill();
+  }
+}
+
+function texMarble(ctx2, w, h, t) {
+  const { tmp } = pixelTex((d,sw,sh) => {
+    for (let y=0;y<sh;y++) for (let x=0;x<sw;x++) {
+      const nx=x/sw, ny=y/sh;
+      const vein=Math.sin((nx*10+ny*14+t*.35) + plasma(nx*1.2, ny*.9, t*.35)*1.8);
+      const shade=185 + vein*55;
+      const i=(y*sw+x)*4;
+      d[i]=shade;
+      d[i+1]=shade-10;
+      d[i+2]=shade+8;
+      d[i+3]=255;
+    }
+  }, w, h, 3);
+  ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texRings(ctx2, w, h, t) {
+  const cx = w / 2, cy = h / 2;
+  ctx2.fillStyle = '#05030a';
+  ctx2.fillRect(0,0,w,h);
+  for (let i = 0; i < 10; i++) {
+    const r = (Math.min(w, h) * 0.08) + i * Math.min(w, h) * 0.075 + Math.sin(t * 2 + i) * 6;
+    ctx2.beginPath();
+    ctx2.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx2.strokeStyle = `hsla(${(t * 80 + i * 28) % 360}, 100%, 70%, 0.75)`;
+    ctx2.lineWidth = 4 - i * 0.22;
+    ctx2.stroke();
+  }
+}
+
+function texHalftone(ctx2, w, h, t) {
+  const dot = Math.max(10, w / 18);
+  const bg = ctx2.createLinearGradient(0,0,w,h);
+  bg.addColorStop(0, '#111827');
+  bg.addColorStop(1, '#3b0f54');
+  ctx2.fillStyle = bg;
+  ctx2.fillRect(0,0,w,h);
+  for (let y = 0; y < h + dot; y += dot) {
+    for (let x = 0; x < w + dot; x += dot) {
+      const v = 0.5 + 0.5 * Math.sin(x * 0.035 + y * 0.045 + t * 3);
+      const r = v * dot * 0.42;
+      ctx2.beginPath();
+      ctx2.arc(x + (y / dot % 2) * dot * 0.5, y, r, 0, Math.PI * 2);
+      ctx2.fillStyle = 'rgba(255,245,180,0.9)';
+      ctx2.fill();
+    }
+  }
+}
+
+function texChevrons(ctx2, w, h, t) {
+  ctx2.fillStyle = '#0a0d12';
+  ctx2.fillRect(0,0,w,h);
+  const band = Math.max(24, h / 9);
+  for (let i = -2; i < h / band + 4; i++) {
+    const y = i * band + (t * 45 % band) - band;
+    ctx2.fillStyle = i % 2 === 0 ? '#00d1ff' : '#ff5f3d';
+    ctx2.beginPath();
+    ctx2.moveTo(0, y + band * 0.5);
+    ctx2.lineTo(w * 0.35, y);
+    ctx2.lineTo(w, y + band * 0.5);
+    ctx2.lineTo(w * 0.35, y + band);
+    ctx2.closePath();
+    ctx2.fill();
+  }
+}
+
+function texBeams(ctx2, w, h, t) {
+  ctx2.fillStyle = '#060606';
+  ctx2.fillRect(0,0,w,h);
+  const cx = w / 2, cy = h / 2;
+  for (let i = 0; i < 18; i++) {
+    const a = (Math.PI * 2 / 18) * i + t * 0.45;
+    const spread = 0.08 + (i % 3) * 0.02;
+    const g = ctx2.createLinearGradient(cx, cy, cx + Math.cos(a) * w, cy + Math.sin(a) * h);
+    g.addColorStop(0, `hsla(${(i * 20 + t * 50) % 360},100%,70%,0.9)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx2.fillStyle = g;
+    ctx2.beginPath();
+    ctx2.moveTo(cx, cy);
+    ctx2.lineTo(cx + Math.cos(a - spread) * w * 1.2, cy + Math.sin(a - spread) * h * 1.2);
+    ctx2.lineTo(cx + Math.cos(a + spread) * w * 1.2, cy + Math.sin(a + spread) * h * 1.2);
+    ctx2.closePath();
+    ctx2.fill();
+  }
 }
 
 function texVideo(ctx2, w, h, polyId) {
@@ -881,12 +1371,131 @@ function texVideo(ctx2, w, h, polyId) {
   else { ctx2.fillStyle='#1a1a1a'; ctx2.fillRect(0,0,w,h); }
 }
 
+function drawMappedTexture(ctx2, p, bb, t) {
+  const rotation = (p.rotation || 0) * Math.PI / 180;
+  const tiltX = (p.tiltX || 0) * Math.PI / 180;
+  const tiltY = (p.tiltY || 0) * Math.PI / 180;
+  const scale = Math.max(0.1, p.scale ?? 1);
+  const offsetX = (p.offsetX || 0) * bb.w;
+  const offsetY = (p.offsetY || 0) * bb.h;
+  const tw = bb.w / scale;
+  const th = bb.h / scale;
+  const planeScaleX = Math.max(0.2, Math.cos(tiltY));
+  const planeScaleY = Math.max(0.2, Math.cos(tiltX));
+  const shearX = Math.sin(tiltY) * 0.75;
+  const shearY = Math.sin(tiltX) * 0.75;
+
+  ctx2.save();
+  ctx2.translate(bb.x + bb.w / 2 + offsetX, bb.y + bb.h / 2 + offsetY);
+  ctx2.rotate(rotation);
+  ctx2.transform(planeScaleX, shearY, shearX, planeScaleY, 0, 0);
+  ctx2.translate(-tw / 2, -th / 2);
+  drawTex(ctx2, p.texture, tw, th, t * (p.speed ?? 1), p.id, p);
+  ctx2.restore();
+}
+
 // ─────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────
 function dist(ax,ay,bx,by){ return Math.hypot(ax-bx,ay-by); }
 
-function ptInPoly(px,py,pts) {
+function cubicAt(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  return mt*mt*mt*p0 + 3*mt*mt*t*p1 + 3*mt*t*t*p2 + t*t*t*p3;
+}
+
+function curveControls(pts, i) {
+  const n = pts.length;
+  const p0 = pts[(i - 1 + n) % n];
+  const p1 = pts[i];
+  const p2 = pts[(i + 1) % n];
+  const p3 = pts[(i + 2) % n];
+  return {
+    p1,
+    p2,
+    cp1: [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6],
+    cp2: [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6],
+  };
+}
+
+function tracePolyPath(ctx2, pts, segmentCurves=[]) {
+  if (!pts.length) return;
+  ctx2.moveTo(pts[0][0], pts[0][1]);
+  const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
+  for (let i=0;i<pts.length;i++) {
+    if (curves[i] && pts.length >= 3) {
+      const seg = curveControls(pts, i);
+      ctx2.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
+    } else {
+      const next = pts[(i + 1) % pts.length];
+      ctx2.lineTo(next[0], next[1]);
+    }
+  }
+  ctx2.closePath();
+}
+
+function samplePathSegments(pts, segmentCurves=[], steps=12) {
+  if (pts.length < 2) return [];
+  const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
+  const out = [];
+  for (let i=0;i<pts.length;i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    if (curves[i] && pts.length >= 3) {
+      const seg = curveControls(pts, i);
+      let prev = seg.p1;
+      for (let s=1;s<=steps;s++) {
+        const t = s / steps;
+        const next = [
+          cubicAt(seg.p1[0], seg.cp1[0], seg.cp2[0], seg.p2[0], t),
+          cubicAt(seg.p1[1], seg.cp1[1], seg.cp2[1], seg.p2[1], t),
+        ];
+        out.push({ a: prev, b: next, edgeIdx: i });
+        prev = next;
+      }
+    } else {
+      out.push({ a, b, edgeIdx: i });
+    }
+  }
+  return out;
+}
+
+function samplePolyPoints(pts, segmentCurves=[], steps=12) {
+  const segs = samplePathSegments(pts, segmentCurves, steps);
+  return segs.length ? segs.map(seg => seg.a) : pts;
+}
+
+function pointToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx*dx + dy*dy;
+  if (!len2) return { dist: dist(px, py, ax, ay), x: ax, y: ay };
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / len2));
+  const x = ax + t * dx, y = ay + t * dy;
+  return { dist: dist(px, py, x, y), x, y };
+}
+
+function getEditTarget(polyId, x, y) {
+  const p = polys.find(poly=>poly.id===polyId);
+  if (!p) return null;
+  const curves = normalizeSegmentCurves(p);
+
+  for (let i=0;i<p.points.length;i++) {
+    const [vx, vy] = p.points[i];
+    if (dist(x, y, vx, vy) < 9) return { type:'vertex', polyId, vertIdx:i, x:vx, y:vy };
+  }
+
+  let best = null;
+  const edgeSegments = samplePathSegments(p.points, curves, 10);
+  for (const seg of edgeSegments) {
+    const hit = pointToSegment(x, y, seg.a[0], seg.a[1], seg.b[0], seg.b[1]);
+    if (hit.dist > 10) continue;
+    if (!best || hit.dist < best.dist) best = { ...hit, type:'edge', polyId, edgeIdx:seg.edgeIdx, insertIdx:seg.edgeIdx + 1 };
+  }
+  return best;
+}
+
+function ptInPoly(px,py,pts,segmentCurves=[]) {
+  pts = samplePolyPoints(pts, segmentCurves);
   let inside=false;
   for(let i=0,j=pts.length-1;i<pts.length;j=i++){
     const [xi,yi]=pts[i],[xj,yj]=pts[j];
@@ -895,7 +1504,8 @@ function ptInPoly(px,py,pts) {
   return inside;
 }
 
-function bbox(pts) {
+function bbox(pts, segmentCurves=[]) {
+  pts = samplePolyPoints(pts, segmentCurves);
   const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
   const x=Math.min(...xs), y=Math.min(...ys);
   return { x, y, w:Math.max(1,Math.max(...xs)-x), h:Math.max(1,Math.max(...ys)-y) };
@@ -909,116 +1519,142 @@ const off = document.createElement('canvas');
 const octx = off.getContext('2d');
 
 let fpsFrames=0, fpsLast=0, fpsVal=0;
+const textureErrors = new Set();
+
+function safeDrawTex(ctx2, id, w, h, t, polyId) {
+  try {
+    drawTex(ctx2, id, w, h, t, polyId, null);
+  } catch (err) {
+    if (!textureErrors.has(id)) {
+      textureErrors.add(id);
+      console.error(`Texture renderer failed: ${id}`, err);
+    }
+    ctx2.save();
+    ctx2.fillStyle = '#320000';
+    ctx2.fillRect(0, 0, w, h);
+    ctx2.strokeStyle = '#ff3860';
+    ctx2.lineWidth = 2;
+    ctx2.strokeRect(1, 1, Math.max(0, w - 2), Math.max(0, h - 2));
+    ctx2.restore();
+  }
+}
 
 function render(ts) {
-  const t = ts * 0.001;
+  requestAnimationFrame(render);
+  try {
+    const t = ts * 0.001;
 
-  // ensure canvas has correct dimensions
-  if (canvas.width < 10 || canvas.height < 10) sizeCanvas();
+    if (canvas.width < 10 || canvas.height < 10) sizeCanvas();
 
-  // FPS
-  fpsFrames++;
-  if (ts-fpsLast>1000){ fpsVal=fpsFrames; fpsFrames=0; fpsLast=ts; document.getElementById('st-fps').textContent=fpsVal; }
+    fpsFrames++;
+    if (ts-fpsLast>1000){ fpsVal=fpsFrames; fpsFrames=0; fpsLast=ts; document.getElementById('st-fps').textContent=fpsVal; }
 
-  // sync canvas dimensions
-  const cw = canvas.width, ch = canvas.height;
-  if (off.width!==cw||off.height!==ch){ off.width=cw; off.height=ch; }
+    const cw = canvas.width, ch = canvas.height;
+    if (off.width!==cw||off.height!==ch){ off.width=cw; off.height=ch; }
 
-  // clear
-  ctx.clearRect(0,0,cw,ch);
+    ctx.clearRect(0,0,cw,ch);
 
-  // draw completed polygons
-  polys.forEach(p => {
-    if (!p.visible || p.points.length<3) return;
-    const bb = bbox(p.points);
+    polys.forEach(p => {
+      if (!p.visible || p.points.length<3) return;
+      const curves = normalizeSegmentCurves(p);
+      const bb = bbox(p.points, curves);
 
-    // render texture into offscreen, clipped to polygon
-    octx.clearRect(0,0,cw,ch);
-    octx.save();
-    octx.beginPath();
-    p.points.forEach(([px,py],i)=>i===0?octx.moveTo(px,py):octx.lineTo(px,py));
-    octx.closePath();
-    octx.clip();
-    octx.save();
-    octx.translate(bb.x, bb.y);
-    drawTex(octx, p.texture, bb.w, bb.h, t*p.speed, p.id);
-    octx.restore();
-    octx.restore();
+      octx.clearRect(0,0,cw,ch);
+      octx.save();
+      octx.beginPath();
+      tracePolyPath(octx, p.points, curves);
+      octx.clip();
+      drawMappedTexture(octx, p, bb, t);
+      octx.restore();
 
-    // blit to main canvas
-    ctx.save();
-    ctx.globalAlpha = p.opacity;
-    ctx.globalCompositeOperation = p.blend;
-    ctx.drawImage(off, 0, 0);
-    ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.globalCompositeOperation = p.blend;
+      ctx.drawImage(off, 0, 0);
+      ctx.restore();
 
-    // outline
-    ctx.save();
-    ctx.beginPath();
-    p.points.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
-    ctx.closePath();
-    const isSel = p.id===selId;
-    ctx.strokeStyle = isSel ? '#00e5ff' : p.color+'80';
-    ctx.lineWidth = isSel ? 1.5 : 0.8;
-    ctx.stroke();
-    ctx.restore();
-
-    // vertex handles when selected + select tool
-    if (isSel && tool==='select') {
-      p.points.forEach(([vx,vy])=>{
-        ctx.beginPath(); ctx.arc(vx,vy,5,0,Math.PI*2);
-        ctx.fillStyle='#00e5ff'; ctx.fill();
-        ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke();
-      });
-    }
-  });
-
-  // WIP polygon while drawing
-  if (drawing && wip.length>0) {
-    ctx.save();
-
-    // dashed preview line
-    ctx.setLineDash([4,4]);
-    ctx.strokeStyle='rgba(0,229,255,0.9)';
-    ctx.lineWidth=1;
-    ctx.beginPath();
-    wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
-    ctx.lineTo(mouse.x, mouse.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // filled preview area
-    if (wip.length>=2) {
+      ctx.save();
       ctx.beginPath();
-      wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
-      ctx.closePath();
-      ctx.fillStyle='rgba(0,229,255,0.07)';
-      ctx.fill();
-    }
+      tracePolyPath(ctx, p.points, curves);
+      const isSel = p.id===selId;
+      ctx.strokeStyle = isSel ? '#00e5ff' : p.color+'80';
+      ctx.lineWidth = isSel ? 1.5 : 0.8;
+      ctx.stroke();
+      ctx.restore();
 
-    // vertex dots
-    wip.forEach(([vx,vy],i)=>{
-      const isFirst = i===0;
-      // close-hint ring on first point
-      if (isFirst && wip.length>=3 && dist(mouse.x,mouse.y,vx,vy)<14) {
-        ctx.beginPath(); ctx.arc(vx,vy,13,0,Math.PI*2);
-        ctx.strokeStyle='rgba(0,229,255,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+      if (isSel && tool==='select') {
+        curves.forEach((isCurved, edgeIdx) => {
+          if (!isCurved) return;
+          const seg = curveControls(p.points, edgeIdx);
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(seg.p1[0], seg.p1[1]);
+          ctx.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
+          ctx.strokeStyle = 'rgba(255, 209, 102, 0.85)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        if (hoverEdit?.polyId === p.id && hoverEdit.type === 'edge') {
+          ctx.beginPath();
+          ctx.arc(hoverEdit.x, hoverEdit.y, 5, 0, Math.PI*2);
+          ctx.fillStyle = '#ffd166';
+          ctx.fill();
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        p.points.forEach(([vx,vy])=>{
+          ctx.beginPath(); ctx.arc(vx,vy,5,0,Math.PI*2);
+          const isHover = hoverEdit?.polyId === p.id && hoverEdit.type === 'vertex' && hoverEdit.x === vx && hoverEdit.y === vy;
+          ctx.fillStyle = isHover ? '#ffd166' : '#00e5ff';
+          ctx.fill();
+          ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke();
+        });
       }
-      ctx.beginPath(); ctx.arc(vx,vy,isFirst?6:4,0,Math.PI*2);
-      ctx.fillStyle=isFirst?'#00e5ff':'#ffffff';
-      ctx.fill();
     });
 
-    ctx.restore();
+    if (drawing && wip.length>0) {
+      ctx.save();
+      ctx.setLineDash([4,4]);
+      ctx.strokeStyle='rgba(0,229,255,0.9)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+      ctx.lineTo(mouse.x, mouse.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (wip.length>=2) {
+        ctx.beginPath();
+        wip.forEach(([px,py],i)=>i===0?ctx.moveTo(px,py):ctx.lineTo(px,py));
+        ctx.closePath();
+        ctx.fillStyle='rgba(0,229,255,0.07)';
+        ctx.fill();
+      }
+
+      wip.forEach(([vx,vy],i)=>{
+        const isFirst = i===0;
+        if (isFirst && wip.length>=3 && dist(mouse.x,mouse.y,vx,vy)<14) {
+          ctx.beginPath(); ctx.arc(vx,vy,13,0,Math.PI*2);
+          ctx.strokeStyle='rgba(0,229,255,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(vx,vy,isFirst?6:4,0,Math.PI*2);
+        ctx.fillStyle=isFirst?'#00e5ff':'#ffffff';
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    TEXTURES.forEach(t2 => {
+      const p2 = previews[t2.id];
+      if (p2) safeDrawTex(p2, t2.id, 120, 68, t, null);
+    });
+  } catch (err) {
+    console.error('Editor render loop failed', err);
   }
-
-  // animate preview thumbnails
-  TEXTURES.forEach(t2 => {
-    const p2 = previews[t2.id];
-    if (p2) drawTex(p2, t2.id, 120, 68, t, null);
-  });
-
-  requestAnimationFrame(render);
 }
 
 requestAnimationFrame(render);
