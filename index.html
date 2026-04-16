@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MAPPR — Video Mapping Studio</title>
+<title>MAPPG - Video Mapping Studio</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
 
@@ -412,7 +412,7 @@ input[type=checkbox] {
   <div id="panel">
     <div class="pblock">
       <div class="pbrand">
-        <div class="logo">MAPPR <span>/ STUDIO</span></div>
+        <div class="logo">MAPPG <span>/ STUDIO</span></div>
         <div class="out-ind">
           <div class="out-dot" id="odot"></div>
           <span id="ostatus">NO OUTPUT</span>
@@ -586,7 +586,7 @@ input[type=checkbox] {
   <div class="si">SELECTED: <span id="st-sel">—</span></div>
   <div class="si">FPS: <span id="st-fps">—</span></div>
   <div style="flex:1"></div>
-  <div class="si">MAPPR v1.0</div>
+  <div class="si">MAPPG v1.0</div>
 </div>
 
 <script>
@@ -629,7 +629,7 @@ const DEFAULT_TEXTURE_COLORS = {
   colorBg: '#05070c',
 };
 
-Object.defineProperty(window, 'mapprState', {
+Object.defineProperty(window, 'mappgState', {
   get() {
     return { polys, videos };
   }
@@ -647,13 +647,13 @@ if (bc) {
 
 // localStorage fallback — output polls this key every 300ms
 function writeLS(data) {
-  try { localStorage.setItem('mappr_state', JSON.stringify(data)); } catch(e) {}
+  try { localStorage.setItem('mappg_state', JSON.stringify(data)); } catch(e) {}
 }
 
 // Poll for output window acknowledgement via localStorage
 window.addEventListener('storage', e => {
-  if (e.key === 'mappr_ready') { setOutputLive(true); broadcast(); }
-  if (e.key === 'mappr_closed') setOutputLive(false);
+  if (e.key === 'mappg_ready') { setOutputLive(true); broadcast(); }
+  if (e.key === 'mappg_closed') setOutputLive(false);
 });
 
 const TEXTURES = [
@@ -1164,7 +1164,7 @@ let outWin = null;
 
 function launchOutput() {
   if (outWin && !outWin.closed) { outWin.focus(); broadcast(); return; }
-  outWin = window.open('output.html','mappr_out',
+  outWin = window.open('output.html','mappg_out',
     'width=1280,height=720,toolbar=0,menubar=0,location=0');
   // Push data as soon as the output page has loaded
   outWin.addEventListener('load', () => {

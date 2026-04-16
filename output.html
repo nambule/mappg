@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MAPPR — Output</title>
+<title>MAPPG - Output</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; background:#000; overflow:hidden; }
@@ -56,7 +56,7 @@ try {
 // localStorage fallback for browsers/setups where direct calls or channels fail
 function readStoredState() {
   try {
-    const raw = localStorage.getItem('mappr_state');
+    const raw = localStorage.getItem('mappg_state');
     if (!raw) return;
     const data = JSON.parse(raw);
     if (Array.isArray(data)) polys = data;
@@ -66,17 +66,17 @@ function readStoredState() {
 readStoredState();
 
 window.addEventListener('storage', e => {
-  if (e.key === 'mappr_state') readStoredState();
+  if (e.key === 'mappg_state') readStoredState();
 });
 
 // Signal readiness for setups that rely on storage events
-try { localStorage.setItem('mappr_ready', String(Date.now())); } catch (e) {}
+try { localStorage.setItem('mappg_ready', String(Date.now())); } catch (e) {}
 
 // Fallback: poll shared opener state directly every 300ms
 // (works for file:// where messaging APIs may be restricted)
 setInterval(() => {
   try {
-    const state = window.opener?.mapprState;
+    const state = window.opener?.mappgState;
     if (state?.polys) {
       polys = state.polys.map(p => ({
         id: p.id, points: p.points, texture: p.texture,
@@ -92,7 +92,7 @@ setInterval(() => {
 
 window.addEventListener('beforeunload', () => {
   try { bc?.postMessage({ type:'closed' }); } catch (e) {}
-  try { localStorage.setItem('mappr_closed', String(Date.now())); } catch (e) {}
+  try { localStorage.setItem('mappg_closed', String(Date.now())); } catch (e) {}
 });
 
 // ─── Texture renderers ───────────────────────────────────────
@@ -616,7 +616,7 @@ function texCascade(c2,w,h,t,pal,polyId){
 
 function texVideo(c2,w,h,polyId){
   try {
-    const v = window.opener?.mapprState?.videos?.[polyId];
+    const v = window.opener?.mappgState?.videos?.[polyId];
     if (v && v.readyState >= 2) {
       c2.drawImage(v,0,0,w,h);
       return;
