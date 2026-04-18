@@ -441,6 +441,9 @@ input[type=checkbox] {
       <div class="pactions">
         <button class="pmini" onclick="deleteSelected()">DELETE [X]</button>
         <button class="pmini" onclick="clearAll()">CLEAR ALL</button>
+        <button class="pmini" onclick="saveScene()">SAVE SCENE</button>
+        <button class="pmini" onclick="document.getElementById('scene-file').click()">LOAD SCENE</button>
+        <input type="file" id="scene-file" accept="application/json,.json" style="display:none" onchange="loadSceneFile(this)">
       </div>
 
       <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
@@ -659,6 +662,9 @@ window.addEventListener('storage', e => {
 const TEXTURES = [
   { id:'lava',    name:'Lava'     },
   { id:'ocean',   name:'Ocean'    },
+  { id:'waves',   name:'Sea Waves'},
+  { id:'eyes',    name:'Eyes'     },
+  { id:'fireworks',name:'Fireworks'},
   { id:'neon',    name:'Neon Grid'},
   { id:'wire',    name:'Wireframe'},
   { id:'matrix',  name:'Matrix'   },
@@ -1158,6 +1164,132 @@ function loadVideo(inp) {
 }
 
 // ─────────────────────────────────────────────
+//  SCENE FILE
+// ─────────────────────────────────────────────
+function sceneData() {
+  return {
+    app: 'MAPPG',
+    version: 1,
+    savedAt: new Date().toISOString(),
+    canvas: {
+      width: canvas.width,
+      height: canvas.height,
+    },
+    polygons: polys.map(p => ({
+      id: p.id,
+      points: p.points.map(([x, y]) => [x, y]),
+      texture: p.texture,
+      opacity: p.opacity,
+      speed: p.speed,
+      blend: p.blend,
+      segmentCurves: [...normalizeSegmentCurves(p)],
+      colorA: p.colorA,
+      colorB: p.colorB,
+      colorBg: p.colorBg,
+      rotation: p.rotation,
+      tiltX: p.tiltX,
+      tiltY: p.tiltY,
+      scale: p.scale,
+      offsetX: p.offsetX,
+      offsetY: p.offsetY,
+      visible: p.visible,
+      color: p.color,
+    })),
+  };
+}
+
+function saveScene() {
+  const data = sceneData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mappg-scene-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function loadSceneFile(inp) {
+  const file = inp.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result || ''));
+      applySceneData(data);
+    } catch (err) {
+      alert('Scene file could not be loaded.');
+      console.error(err);
+    } finally {
+      inp.value = '';
+    }
+  };
+  reader.onerror = () => {
+    alert('Scene file could not be read.');
+    inp.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function applySceneData(data) {
+  const source = Array.isArray(data) ? data : data?.polygons;
+  if (!Array.isArray(source)) throw new Error('Invalid scene format');
+
+  polys = source.map((p, i) => normalizeScenePolygon(p, i)).filter(Boolean);
+  videos = {};
+  drawing = false;
+  wip = [];
+  dragging = null;
+  hoverEdit = null;
+  colorN = polys.length;
+  select(polys[0]?.id || null);
+  refreshList();
+  updateHint();
+  broadcast();
+}
+
+function normalizeScenePolygon(p, i) {
+  if (!p || !Array.isArray(p.points)) return null;
+  const points = p.points
+    .filter(pt => Array.isArray(pt) && Number.isFinite(Number(pt[0])) && Number.isFinite(Number(pt[1])))
+    .map(([x, y]) => [Number(x), Number(y)]);
+  if (points.length < 3) return null;
+
+  const segmentCurves = Array.isArray(p.segmentCurves)
+    ? points.map((_, idx) => !!p.segmentCurves[idx])
+    : points.map(() => !!p.curved);
+
+  return {
+    id: Number.isFinite(Number(p.id)) ? Number(p.id) : Date.now() + i,
+    points,
+    texture: TEXTURES.some(t => t.id === p.texture) ? p.texture : 'lava',
+    opacity: clampNumber(p.opacity, 0, 1, 1),
+    speed: clampNumber(p.speed, 0.1, 3, 1),
+    blend: typeof p.blend === 'string' ? p.blend : 'source-over',
+    segmentCurves,
+    colorA: normalizeHex(p.colorA || DEFAULT_TEXTURE_COLORS.colorA),
+    colorB: normalizeHex(p.colorB || DEFAULT_TEXTURE_COLORS.colorB),
+    colorBg: normalizeHex(p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg),
+    rotation: clampNumber(p.rotation, -180, 180, 0),
+    tiltX: clampNumber(p.tiltX, -80, 80, 0),
+    tiltY: clampNumber(p.tiltY, -80, 80, 0),
+    scale: clampNumber(p.scale, 0.5, 2.5, 1),
+    offsetX: clampNumber(p.offsetX, -1, 1, 0),
+    offsetY: clampNumber(p.offsetY, -1, 1, 0),
+    visible: p.visible !== false,
+    color: normalizeHex(p.color || COLORS[i % COLORS.length]),
+  };
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+// ─────────────────────────────────────────────
 //  OUTPUT
 // ─────────────────────────────────────────────
 let outWin = null;
@@ -1233,6 +1365,9 @@ function drawTex(ctx2, id, w, h, t, polyId, poly) {
   switch(id) {
     case 'lava':    texLava(ctx2,w,h,t,pal); break;
     case 'ocean':   texOcean(ctx2,w,h,t,pal); break;
+    case 'waves':   texSeaWaves(ctx2,w,h,t,pal); break;
+    case 'eyes':    texEyes(ctx2,w,h,t,pal); break;
+    case 'fireworks': texFireworks(ctx2,w,h,t,pal); break;
     case 'neon':    texNeon(ctx2,w,h,t,pal); break;
     case 'wire':    texWire(ctx2,w,h,t,pal); break;
     case 'matrix':  texMatrix(ctx2,w,h,t,pal); break;
@@ -1280,11 +1415,20 @@ function texturePalette(p) {
 }
 
 function hexToRgb(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
-  return m ? {
-    r: parseInt(m[1], 16),
-    g: parseInt(m[2], 16),
-    b: parseInt(m[3], 16),
+  const value = String(hex || '').trim();
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(value);
+  if (m) {
+    return {
+      r: parseInt(m[1], 16),
+      g: parseInt(m[2], 16),
+      b: parseInt(m[3], 16),
+    };
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(value);
+  return rgb ? {
+    r: Math.max(0, Math.min(255, Math.round(Number(rgb[1])))),
+    g: Math.max(0, Math.min(255, Math.round(Number(rgb[2])))),
+    b: Math.max(0, Math.min(255, Math.round(Number(rgb[3])))),
   } : { r: 0, g: 0, b: 0 };
 }
 
@@ -1356,6 +1500,266 @@ function texOcean(ctx2, w, h, t, pal) {
     }
   }, w, h);
   ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texSeaWaves(ctx2, w, h, t, pal) {
+  const bg = ctx2.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, mixColor(pal.bg, pal.a, 0.22));
+  bg.addColorStop(0.55, mixColor(pal.bg, pal.b, 0.32));
+  bg.addColorStop(1, mixColor(pal.bg, '#000000', 0.28));
+  ctx2.fillStyle = bg;
+  ctx2.fillRect(0, 0, w, h);
+
+  ctx2.save();
+  ctx2.globalCompositeOperation = 'screen';
+  const bands = Math.max(3, Math.min(5, Math.floor(h / 95)));
+  for (let i = 0; i < bands; i++) {
+    const seed = i * 18.41;
+    const yBase = h * (0.22 + i * 0.18 + rand01(seed) * 0.045);
+    const amp = h * (0.045 + rand01(seed + 1) * 0.028);
+    const len = w * (0.34 + rand01(seed + 2) * 0.18);
+    const phase = t * (0.9 + rand01(seed + 3) * 0.55) + seed;
+    const water = ctx2.createLinearGradient(0, yBase - amp * 1.6, 0, yBase + amp * 3.1);
+    water.addColorStop(0, alpha(mixColor(pal.a, '#ffffff', 0.18), 0.28));
+    water.addColorStop(0.48, alpha(mixColor(pal.a, pal.b, 0.4), 0.5));
+    water.addColorStop(1, alpha(pal.b, 0.18));
+
+    ctx2.beginPath();
+    for (let x = -12; x <= w + 12; x += 8) {
+      const y = yBase
+        + Math.sin(x / len * Math.PI * 2 + phase) * amp
+        + Math.sin(x / len * Math.PI * 4 - phase * 0.65) * amp * 0.23;
+      if (x === -12) ctx2.moveTo(x, y);
+      else ctx2.lineTo(x, y);
+    }
+    ctx2.lineTo(w + 12, h + 20);
+    ctx2.lineTo(-12, h + 20);
+    ctx2.closePath();
+    ctx2.fillStyle = water;
+    ctx2.fill();
+
+    ctx2.strokeStyle = alpha(mixColor('#ffffff', pal.a, 0.16), 0.72);
+    ctx2.lineWidth = Math.max(1.4, h * 0.006);
+    ctx2.shadowColor = alpha(pal.a, 0.45);
+    ctx2.shadowBlur = 9;
+    ctx2.beginPath();
+    for (let x = -12; x <= w + 12; x += 8) {
+      const y = yBase
+        + Math.sin(x / len * Math.PI * 2 + phase) * amp
+        + Math.sin(x / len * Math.PI * 4 - phase * 0.65) * amp * 0.23;
+      if (x === -12) ctx2.moveTo(x, y);
+      else ctx2.lineTo(x, y);
+    }
+    ctx2.stroke();
+
+    const crests = Math.max(2, Math.floor(w / 180));
+    for (let c = 0; c < crests; c++) {
+      const x = ((c + rand01(seed + c + 5)) / crests * w + t * (18 + i * 5)) % (w + len * 0.2) - len * 0.1;
+      const y = yBase + Math.sin(x / len * Math.PI * 2 + phase) * amp - amp * 0.15;
+      const curl = len * (0.08 + rand01(seed + c + 9) * 0.05);
+      ctx2.strokeStyle = alpha('#ffffff', 0.32);
+      ctx2.lineWidth = Math.max(1, h * 0.0035);
+      ctx2.beginPath();
+      ctx2.arc(x, y, curl, Math.PI * 1.08, Math.PI * 1.78);
+      ctx2.stroke();
+    }
+  }
+  ctx2.restore();
+}
+
+function texEyes(ctx2, w, h, t, pal) {
+  ctx2.fillStyle = pal.bg;
+  ctx2.fillRect(0, 0, w, h);
+
+  const glow = ctx2.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.62);
+  glow.addColorStop(0, alpha(mixColor(pal.a, pal.b, 0.5), 0.18));
+  glow.addColorStop(1, alpha(pal.bg, 0));
+  ctx2.fillStyle = glow;
+  ctx2.fillRect(0, 0, w, h);
+
+  const count = Math.max(3, Math.min(7, Math.floor((w * h) / 34000)));
+  for (let i = 0; i < count; i++) {
+    const seed = i * 53.83;
+    const cycle = 1.6 + rand01(seed + 5) * 3.2;
+    const rawPhase = t / cycle + rand01(seed + 6);
+    const phase = rawPhase % 1;
+    const placeSeed = seed + Math.floor(rawPhase + 0.5) * 97.31;
+    const cx = w * (0.08 + rand01(placeSeed) * 0.84);
+    const cy = h * (0.12 + rand01(placeSeed + 1) * 0.76);
+    const base = Math.min(w, h) * (0.12 + rand01(placeSeed + 2) * 0.18);
+    const ew = Math.max(30, base * (0.82 + rand01(placeSeed + 3) * 0.9));
+    const eh = ew * (0.32 + rand01(placeSeed + 4) * 0.16);
+    const blink = Math.exp(-Math.pow((phase - 0.5) / 0.07, 2));
+    const open = Math.max(0.045, 1 - blink);
+    const lookX = Math.sin(t * (0.85 + rand01(seed + 7) * 0.7) + placeSeed) * ew * 0.12;
+    const lookY = Math.cos(t * (0.72 + rand01(seed + 8) * 0.6) + placeSeed) * eh * 0.08 * open;
+    drawEye(ctx2, cx, cy, ew, eh, open, lookX, lookY, placeSeed, pal);
+  }
+}
+
+function drawEye(ctx2, cx, cy, ew, eh, open, lookX, lookY, seed, pal) {
+  ctx2.save();
+  ctx2.translate(cx, cy);
+  ctx2.rotate((rand01(seed + 8) - 0.5) * 0.28);
+
+  ctx2.shadowColor = alpha(pal.a, 0.32);
+  ctx2.shadowBlur = 10;
+  ctx2.fillStyle = alpha(mixColor(pal.a, '#ffffff', 0.72), 0.9);
+  ctx2.beginPath();
+  ctx2.ellipse(0, 0, ew * 0.5, Math.max(1, eh * 0.5 * open), 0, 0, Math.PI * 2);
+  ctx2.fill();
+  ctx2.shadowBlur = 0;
+
+  ctx2.strokeStyle = alpha(mixColor(pal.b, '#000000', 0.18), 0.82);
+  ctx2.lineWidth = Math.max(1, ew * 0.035);
+  ctx2.beginPath();
+  ctx2.ellipse(0, 0, ew * 0.5, Math.max(1, eh * 0.5 * open), 0, 0, Math.PI * 2);
+  ctx2.stroke();
+
+  if (open > 0.16) {
+    const irisR = Math.min(ew, eh) * 0.26 * Math.min(1, open * 1.35);
+    const ix = Math.max(-ew * 0.18, Math.min(ew * 0.18, lookX));
+    const iy = Math.max(-eh * 0.08, Math.min(eh * 0.08, lookY));
+    const iris = ctx2.createRadialGradient(ix - irisR * 0.25, iy - irisR * 0.32, irisR * 0.08, ix, iy, irisR);
+    iris.addColorStop(0, mixColor('#ffffff', pal.a, 0.3));
+    iris.addColorStop(0.38, pal.a);
+    iris.addColorStop(1, mixColor(pal.b, '#000000', 0.38));
+    ctx2.fillStyle = iris;
+    ctx2.beginPath();
+    ctx2.arc(ix, iy, irisR, 0, Math.PI * 2);
+    ctx2.fill();
+
+    ctx2.fillStyle = alpha('#000000', 0.86);
+    ctx2.beginPath();
+    ctx2.arc(ix, iy, irisR * 0.58, 0, Math.PI * 2);
+    ctx2.fill();
+
+    ctx2.fillStyle = alpha('#ffffff', 0.72);
+    ctx2.beginPath();
+    ctx2.arc(ix - irisR * 0.28, iy - irisR * 0.32, Math.max(1, irisR * 0.14), 0, Math.PI * 2);
+    ctx2.fill();
+  } else {
+    ctx2.strokeStyle = alpha(mixColor(pal.a, '#ffffff', 0.45), 0.42);
+    ctx2.lineWidth = Math.max(1, ew * 0.025);
+    ctx2.beginPath();
+    ctx2.moveTo(-ew * 0.42, 0);
+    ctx2.quadraticCurveTo(0, eh * 0.08, ew * 0.42, 0);
+    ctx2.stroke();
+  }
+
+  ctx2.restore();
+}
+
+function texFireworks(ctx2, w, h, t, pal) {
+  const sky = ctx2.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, mixColor(pal.bg, '#000000', 0.62));
+  sky.addColorStop(0.58, pal.bg);
+  sky.addColorStop(1, mixColor(pal.bg, pal.b, 0.22));
+  ctx2.fillStyle = sky;
+  ctx2.fillRect(0, 0, w, h);
+
+  ctx2.save();
+  ctx2.globalCompositeOperation = 'lighter';
+  const rockets = Math.max(3, Math.min(5, Math.floor(w / 190)));
+  for (let i = 0; i < rockets; i++) {
+    const seed = i * 31.71;
+    const cycle = 2.35 + rand01(seed) * 1.85;
+    const phase = (t / cycle + rand01(seed + 1)) % 1;
+    const startX = w * (0.08 + rand01(seed + 2) * 0.84);
+    const drift = (rand01(seed + 3) - 0.5) * w * 0.28;
+    const arc = Math.sin(phase * Math.PI) * drift;
+    const burstX = startX + drift;
+    const burstY = h * (0.12 + rand01(seed + 4) * 0.44);
+    const x = startX + arc * Math.min(1, phase / 0.42);
+    const y = h + (burstY - h) * Math.min(1, phase / 0.48);
+    const hueMix = rand01(seed + 5);
+    const main = mixColor(pal.a, pal.b, hueMix);
+    const hot = mixColor(main, '#ffffff', 0.44);
+
+    if (phase < 0.48) {
+      const lift = phase / 0.48;
+      const tailLen = h * (0.08 + rand01(seed + 6) * 0.08);
+      const tail = ctx2.createLinearGradient(x, y + tailLen, x, y);
+      tail.addColorStop(0, alpha(main, 0));
+      tail.addColorStop(0.35, alpha(main, 0.28));
+      tail.addColorStop(1, alpha(hot, 0.95));
+      ctx2.strokeStyle = tail;
+      ctx2.lineWidth = Math.max(1.4, w * 0.004);
+      ctx2.shadowColor = main;
+      ctx2.shadowBlur = 12;
+      ctx2.beginPath();
+      ctx2.moveTo(x - drift * 0.08, y + tailLen);
+      ctx2.quadraticCurveTo(x - drift * 0.04, y + tailLen * 0.45, x, y);
+      ctx2.stroke();
+      ctx2.fillStyle = alpha('#ffffff', 0.55 + lift * 0.35);
+      ctx2.beginPath();
+      ctx2.arc(x, y, Math.max(1.6, w * 0.004), 0, Math.PI * 2);
+      ctx2.fill();
+    } else {
+      const life = (phase - 0.48) / 0.52;
+      const ease = 1 - Math.pow(1 - life, 2);
+      const count = 64 + Math.floor(rand01(seed + 7) * 54);
+      const radius = Math.min(w, h) * (0.22 + rand01(seed + 8) * 0.2) * ease;
+      const fade = Math.max(0, 1 - life);
+
+      const flash = ctx2.createRadialGradient(burstX, burstY, 0, burstX, burstY, radius * 0.68);
+      flash.addColorStop(0, alpha('#ffffff', fade));
+      flash.addColorStop(0.18, alpha(hot, fade * 0.78));
+      flash.addColorStop(1, alpha(main, 0));
+      ctx2.fillStyle = flash;
+      ctx2.beginPath();
+      ctx2.arc(burstX, burstY, radius * 0.68, 0, Math.PI * 2);
+      ctx2.fill();
+
+      const core = ctx2.createRadialGradient(burstX, burstY, 0, burstX, burstY, radius * 0.32);
+      core.addColorStop(0, alpha('#ffffff', fade * 0.95));
+      core.addColorStop(0.35, alpha(hot, fade * 0.72));
+      core.addColorStop(1, alpha(main, 0));
+      ctx2.fillStyle = core;
+      ctx2.beginPath();
+      ctx2.arc(burstX, burstY, radius * 0.32, 0, Math.PI * 2);
+      ctx2.fill();
+
+      for (let p = 0; p < count; p++) {
+        const ps = seed + p * 9.13;
+        const angle = Math.PI * 2 * (p / count + rand01(ps) * 0.08);
+        const spread = 0.58 + rand01(ps + 1) * 0.7;
+        const px = burstX + Math.cos(angle) * radius * spread + Math.sin(life * Math.PI + ps) * 4;
+        const py = burstY + Math.sin(angle) * radius * spread + life * life * h * 0.18;
+        const spark = mixColor(main, p % 3 === 0 ? '#ffffff' : pal.a, rand01(ps + 2) * 0.45);
+        ctx2.fillStyle = alpha(spark, fade * (0.72 + rand01(ps + 3) * 0.28));
+        ctx2.shadowColor = spark;
+        ctx2.shadowBlur = 24 * fade;
+        ctx2.beginPath();
+        ctx2.arc(px, py, Math.max(1.8, Math.min(w, h) * (0.005 + rand01(ps + 4) * 0.007) * fade), 0, Math.PI * 2);
+        ctx2.fill();
+
+        if (p % 2 === 0) {
+          ctx2.strokeStyle = alpha(spark, fade * 0.58);
+          ctx2.lineWidth = Math.max(1.3, Math.min(w, h) * 0.0038);
+          ctx2.beginPath();
+          ctx2.moveTo(burstX + Math.cos(angle) * radius * spread * 0.46, burstY + Math.sin(angle) * radius * spread * 0.46);
+          ctx2.lineTo(px, py);
+          ctx2.stroke();
+        }
+      }
+
+      ctx2.strokeStyle = alpha(hot, fade * 0.82);
+      ctx2.lineWidth = Math.max(2, Math.min(w, h) * 0.009);
+      ctx2.shadowColor = main;
+      ctx2.shadowBlur = 36 * fade;
+      ctx2.beginPath();
+      ctx2.arc(burstX, burstY, radius * 0.82, 0, Math.PI * 2);
+      ctx2.stroke();
+    }
+  }
+  ctx2.restore();
+
+  const haze = ctx2.createRadialGradient(w * 0.5, h * 1.08, 0, w * 0.5, h * 1.08, h * 0.55);
+  haze.addColorStop(0, alpha(mixColor(pal.a, pal.b, 0.5), 0.14));
+  haze.addColorStop(1, alpha(pal.bg, 0));
+  ctx2.fillStyle = haze;
+  ctx2.fillRect(0, 0, w, h);
 }
 
 function texNeon(ctx2, w, h, t, pal) {
@@ -1751,43 +2155,94 @@ function texCascade(ctx2, w, h, t, pal, polyId) {
   ctx2.fillStyle = pal.bg;
   ctx2.fillRect(0, 0, w, h);
 
-  const bins = Math.max(18, Math.floor(w / 10));
+  const bins = Math.max(24, Math.floor(w / 7));
   const binW = w / bins;
   const heights = Array(bins).fill(0);
-  const pieces = Math.max(80, Math.floor((w * h) / 260));
+  const pieces = Math.max(95, Math.floor((w * h) / 360));
   const baseSeed = (polyId || 1) * 0.017;
+  const fillT = Math.max(9, Math.min(16, Math.sqrt(w * h) / 34));
+  const flushT = 0.82;
+  const restT = 1;
+  const cycleT = 30;
+  const holdT = Math.max(0, cycleT - fillT - flushT - restT);
+  const phaseT = ((t % cycleT) + cycleT) % cycleT;
+  const flushStartT = fillT + holdT;
+  const spawnGap = flushStartT / pieces;
+  const flushing = phaseT >= flushStartT && phaseT < flushStartT + flushT;
+  const resting = phaseT >= flushStartT + flushT;
+  const localT = flushing ? flushStartT : phaseT;
+  const flushP = flushing ? (phaseT - flushStartT) / flushT : 0;
+  const flushEase = flushP * flushP * (3 - 2 * flushP);
+  const pushDist = Math.max(w, h) * 1.45;
+  if (resting) return;
 
   for (let i=0; i<pieces; i++) {
     const seed = baseSeed + i * 9.73;
-    const spawnT = i * 0.52;
-    if (t < spawnT) break;
+    const spawnT = i * spawnGap;
 
     const size = 8 + rand01(seed + 1) * Math.max(10, w * 0.05);
-    const span = Math.max(1, Math.ceil(size / binW));
-    const startBin = Math.min(bins - span, Math.floor(rand01(seed + 2) * bins));
+    const span = Math.min(bins, Math.max(1, Math.ceil(size * 0.85 / binW)));
+    const targetBin = Math.min(bins - span, Math.floor(rand01(seed + 2) * (bins - span + 1)));
     const speed = 36 + rand01(seed + 3) * 28;
     const rotation = rand01(seed + 4) * Math.PI * 2;
     const shape = Math.floor(rand01(seed + 5) * 3);
     const mix = rand01(seed + 6);
     const color = mixColor(pal.a, pal.b, mix);
-    const support = Math.max(...heights.slice(startBin, startBin + span));
-    if (support >= h - size * 0.8) continue;
-    const impactY = Math.max(size * 0.75, h - support - size * 0.5);
+    let startBin = targetBin;
+    let support = Infinity;
+    let bestScore = Infinity;
+    for (let s = 0; s <= bins - span; s++) {
+      let minH = Infinity, maxH = 0, sumH = 0;
+      for (let b = s; b < s + span; b++) {
+        const hb = heights[b];
+        minH = Math.min(minH, hb);
+        maxH = Math.max(maxH, hb);
+        sumH += hb;
+      }
+      const avgH = sumH / span;
+      const score = maxH * 1.55 + avgH * 0.25 + (maxH - minH) * 0.85 + Math.abs(s - targetBin) * binW * 0.02;
+      if (score < bestScore) {
+        bestScore = score;
+        startBin = s;
+        support = maxH;
+      }
+    }
+    const settledSupport = Math.min(support, Math.max(0, h - size * 1.1));
+    const impactY = Math.max(size * 0.75, h - settledSupport - size * 0.5);
     const impactT = spawnT + (impactY + size) / speed;
     const x = (startBin + span * 0.5) * binW;
+    const stackHeight = size * (0.32 + rand01(seed + 7) * 0.1);
+    for (let b = startBin; b < startBin + span; b++) {
+      const center = startBin + span * 0.5 - 0.5;
+      const footprint = span <= 1 ? 1 : 1 - Math.abs(b - center) / (span * 0.65);
+      const packedHeight = settledSupport + stackHeight * Math.max(0.62, footprint);
+      heights[b] = Math.min(h, Math.max(heights[b], packedHeight));
+    }
+    if (localT < spawnT) continue;
 
-    if (t < impactT) {
-      const y = -size + (t - spawnT) * speed;
-      drawShard(ctx2, x, y, size, shape, color, rotation + (t - spawnT) * 1.7);
+    const drawCascadeShard = (x0, y0, rot0) => {
+      if (!flushing) {
+        drawShard(ctx2, x0, y0, size, shape, color, rot0);
+        return;
+      }
+      const side = x0 < w * 0.5 ? -1 : 1;
+      const pushX = side * pushDist * (0.55 + rand01(seed + 8) * 0.72) * flushEase;
+      const pushY = pushDist * (rand01(seed + 9) - 0.62) * flushEase - Math.sin(flushP * Math.PI) * h * 0.16;
+      drawShard(ctx2, x0 + pushX, y0 + pushY, size, shape, color, rot0 + side * flushEase * 7.5);
+    };
+
+    if (flushing) {
+      drawCascadeShard(x, impactY, rotation);
       continue;
     }
 
-    drawShard(ctx2, x, impactY, size, shape, color, rotation);
-
-    const stackHeight = Math.max(size * 0.7, size * (0.75 + rand01(seed + 7) * 0.2));
-    for (let b = startBin; b < startBin + span; b++) {
-      heights[b] = Math.min(h, Math.max(heights[b], support + stackHeight));
+    if (localT < impactT) {
+      const y = -size + (localT - spawnT) * speed;
+      drawCascadeShard(x, y, rotation + (localT - spawnT) * 1.7);
+      continue;
     }
+
+    drawCascadeShard(x, impactY, rotation);
   }
 }
 

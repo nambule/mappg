@@ -105,8 +105,17 @@ function texturePalette(p) {
 }
 
 function hexToRgb(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
-  return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) } : { r:0,g:0,b:0 };
+  const value = String(hex || '').trim();
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(value);
+  if (m) {
+    return { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) };
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(value);
+  return rgb ? {
+    r: Math.max(0, Math.min(255, Math.round(Number(rgb[1])))),
+    g: Math.max(0, Math.min(255, Math.round(Number(rgb[2])))),
+    b: Math.max(0, Math.min(255, Math.round(Number(rgb[3])))),
+  } : { r:0,g:0,b:0 };
 }
 
 function mixColor(c1, c2, t) {
@@ -154,6 +163,9 @@ function drawTex(c2, id, w, h, t, polyId, poly) {
   switch(id) {
     case 'lava':    texLava(c2,w,h,t,pal);    break;
     case 'ocean':   texOcean(c2,w,h,t,pal);   break;
+    case 'waves':   texSeaWaves(c2,w,h,t,pal); break;
+    case 'eyes':    texEyes(c2,w,h,t,pal);    break;
+    case 'fireworks': texFireworks(c2,w,h,t,pal); break;
     case 'neon':    texNeon(c2,w,h,t,pal);    break;
     case 'wire':    texWire(c2,w,h,t,pal);    break;
     case 'matrix':  texMatrix(c2,w,h,t,pal);  break;
@@ -214,6 +226,262 @@ function texOcean(c2,w,h,t,pal){
     }
   },w,h,4);
   c2.drawImage(tmp,0,0,w,h);
+}
+
+function texSeaWaves(c2,w,h,t,pal){
+  const bg=c2.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,mixColor(pal.bg,pal.a,.22));
+  bg.addColorStop(.55,mixColor(pal.bg,pal.b,.32));
+  bg.addColorStop(1,mixColor(pal.bg,'#000000',.28));
+  c2.fillStyle=bg;
+  c2.fillRect(0,0,w,h);
+
+  c2.save();
+  c2.globalCompositeOperation='screen';
+  const bands=Math.max(3,Math.min(5,Math.floor(h/95)));
+  for(let i=0;i<bands;i++){
+    const seed=i*18.41;
+    const yBase=h*(.22+i*.18+rand01(seed)*.045);
+    const amp=h*(.045+rand01(seed+1)*.028);
+    const len=w*(.34+rand01(seed+2)*.18);
+    const phase=t*(.9+rand01(seed+3)*.55)+seed;
+    const water=c2.createLinearGradient(0,yBase-amp*1.6,0,yBase+amp*3.1);
+    water.addColorStop(0,alpha(mixColor(pal.a,'#ffffff',.18),.28));
+    water.addColorStop(.48,alpha(mixColor(pal.a,pal.b,.4),.5));
+    water.addColorStop(1,alpha(pal.b,.18));
+
+    c2.beginPath();
+    for(let x=-12;x<=w+12;x+=8){
+      const y=yBase+Math.sin(x/len*Math.PI*2+phase)*amp+Math.sin(x/len*Math.PI*4-phase*.65)*amp*.23;
+      if(x===-12)c2.moveTo(x,y);
+      else c2.lineTo(x,y);
+    }
+    c2.lineTo(w+12,h+20);
+    c2.lineTo(-12,h+20);
+    c2.closePath();
+    c2.fillStyle=water;
+    c2.fill();
+
+    c2.strokeStyle=alpha(mixColor('#ffffff',pal.a,.16),.72);
+    c2.lineWidth=Math.max(1.4,h*.006);
+    c2.shadowColor=alpha(pal.a,.45);
+    c2.shadowBlur=9;
+    c2.beginPath();
+    for(let x=-12;x<=w+12;x+=8){
+      const y=yBase+Math.sin(x/len*Math.PI*2+phase)*amp+Math.sin(x/len*Math.PI*4-phase*.65)*amp*.23;
+      if(x===-12)c2.moveTo(x,y);
+      else c2.lineTo(x,y);
+    }
+    c2.stroke();
+
+    const crests=Math.max(2,Math.floor(w/180));
+    for(let c=0;c<crests;c++){
+      const x=((c+rand01(seed+c+5))/crests*w+t*(18+i*5))%(w+len*.2)-len*.1;
+      const y=yBase+Math.sin(x/len*Math.PI*2+phase)*amp-amp*.15;
+      const curl=len*(.08+rand01(seed+c+9)*.05);
+      c2.strokeStyle=alpha('#ffffff',.32);
+      c2.lineWidth=Math.max(1,h*.0035);
+      c2.beginPath();
+      c2.arc(x,y,curl,Math.PI*1.08,Math.PI*1.78);
+      c2.stroke();
+    }
+  }
+  c2.restore();
+}
+
+function texEyes(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
+  c2.fillRect(0,0,w,h);
+
+  const glow=c2.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,Math.max(w,h)*.62);
+  glow.addColorStop(0,alpha(mixColor(pal.a,pal.b,.5),.18));
+  glow.addColorStop(1,alpha(pal.bg,0));
+  c2.fillStyle=glow;
+  c2.fillRect(0,0,w,h);
+
+  const count=Math.max(3,Math.min(7,Math.floor((w*h)/34000)));
+  for(let i=0;i<count;i++){
+    const seed=i*53.83;
+    const cycle=1.6+rand01(seed+5)*3.2;
+    const rawPhase=t/cycle+rand01(seed+6);
+    const phase=rawPhase%1;
+    const placeSeed=seed+Math.floor(rawPhase+.5)*97.31;
+    const cx=w*(.08+rand01(placeSeed)*.84);
+    const cy=h*(.12+rand01(placeSeed+1)*.76);
+    const base=Math.min(w,h)*(.12+rand01(placeSeed+2)*.18);
+    const ew=Math.max(30,base*(.82+rand01(placeSeed+3)*.9));
+    const eh=ew*(.32+rand01(placeSeed+4)*.16);
+    const blink=Math.exp(-Math.pow((phase-.5)/.07,2));
+    const open=Math.max(.045,1-blink);
+    const lookX=Math.sin(t*(.85+rand01(seed+7)*.7)+placeSeed)*ew*.12;
+    const lookY=Math.cos(t*(.72+rand01(seed+8)*.6)+placeSeed)*eh*.08*open;
+    drawEye(c2,cx,cy,ew,eh,open,lookX,lookY,placeSeed,pal);
+  }
+}
+
+function drawEye(c2,cx,cy,ew,eh,open,lookX,lookY,seed,pal){
+  c2.save();
+  c2.translate(cx,cy);
+  c2.rotate((rand01(seed+8)-.5)*.28);
+
+  c2.shadowColor=alpha(pal.a,.32);
+  c2.shadowBlur=10;
+  c2.fillStyle=alpha(mixColor(pal.a,'#ffffff',.72),.9);
+  c2.beginPath();
+  c2.ellipse(0,0,ew*.5,Math.max(1,eh*.5*open),0,0,Math.PI*2);
+  c2.fill();
+  c2.shadowBlur=0;
+
+  c2.strokeStyle=alpha(mixColor(pal.b,'#000000',.18),.82);
+  c2.lineWidth=Math.max(1,ew*.035);
+  c2.beginPath();
+  c2.ellipse(0,0,ew*.5,Math.max(1,eh*.5*open),0,0,Math.PI*2);
+  c2.stroke();
+
+  if(open>.16){
+    const irisR=Math.min(ew,eh)*.26*Math.min(1,open*1.35);
+    const ix=Math.max(-ew*.18,Math.min(ew*.18,lookX));
+    const iy=Math.max(-eh*.08,Math.min(eh*.08,lookY));
+    const iris=c2.createRadialGradient(ix-irisR*.25,iy-irisR*.32,irisR*.08,ix,iy,irisR);
+    iris.addColorStop(0,mixColor('#ffffff',pal.a,.3));
+    iris.addColorStop(.38,pal.a);
+    iris.addColorStop(1,mixColor(pal.b,'#000000',.38));
+    c2.fillStyle=iris;
+    c2.beginPath();
+    c2.arc(ix,iy,irisR,0,Math.PI*2);
+    c2.fill();
+
+    c2.fillStyle=alpha('#000000',.86);
+    c2.beginPath();
+    c2.arc(ix,iy,irisR*.58,0,Math.PI*2);
+    c2.fill();
+
+    c2.fillStyle=alpha('#ffffff',.72);
+    c2.beginPath();
+    c2.arc(ix-irisR*.28,iy-irisR*.32,Math.max(1,irisR*.14),0,Math.PI*2);
+    c2.fill();
+  }else{
+    c2.strokeStyle=alpha(mixColor(pal.a,'#ffffff',.45),.42);
+    c2.lineWidth=Math.max(1,ew*.025);
+    c2.beginPath();
+    c2.moveTo(-ew*.42,0);
+    c2.quadraticCurveTo(0,eh*.08,ew*.42,0);
+    c2.stroke();
+  }
+
+  c2.restore();
+}
+
+function texFireworks(c2,w,h,t,pal){
+  const sky=c2.createLinearGradient(0,0,0,h);
+  sky.addColorStop(0,mixColor(pal.bg,'#000000',.62));
+  sky.addColorStop(.58,pal.bg);
+  sky.addColorStop(1,mixColor(pal.bg,pal.b,.22));
+  c2.fillStyle=sky;
+  c2.fillRect(0,0,w,h);
+
+  c2.save();
+  c2.globalCompositeOperation='lighter';
+  const rockets=Math.max(3,Math.min(5,Math.floor(w/190)));
+  for(let i=0;i<rockets;i++){
+    const seed=i*31.71;
+    const cycle=2.35+rand01(seed)*1.85;
+    const phase=(t/cycle+rand01(seed+1))%1;
+    const startX=w*(.08+rand01(seed+2)*.84);
+    const drift=(rand01(seed+3)-.5)*w*.28;
+    const arc=Math.sin(phase*Math.PI)*drift;
+    const burstX=startX+drift;
+    const burstY=h*(.12+rand01(seed+4)*.44);
+    const x=startX+arc*Math.min(1,phase/.42);
+    const y=h+(burstY-h)*Math.min(1,phase/.48);
+    const hueMix=rand01(seed+5);
+    const main=mixColor(pal.a,pal.b,hueMix);
+    const hot=mixColor(main,'#ffffff',.44);
+
+    if(phase<.48){
+      const lift=phase/.48;
+      const tailLen=h*(.08+rand01(seed+6)*.08);
+      const tail=c2.createLinearGradient(x,y+tailLen,x,y);
+      tail.addColorStop(0,alpha(main,0));
+      tail.addColorStop(.35,alpha(main,.28));
+      tail.addColorStop(1,alpha(hot,.95));
+      c2.strokeStyle=tail;
+      c2.lineWidth=Math.max(1.4,w*.004);
+      c2.shadowColor=main;
+      c2.shadowBlur=12;
+      c2.beginPath();
+      c2.moveTo(x-drift*.08,y+tailLen);
+      c2.quadraticCurveTo(x-drift*.04,y+tailLen*.45,x,y);
+      c2.stroke();
+      c2.fillStyle=alpha('#ffffff',.55+lift*.35);
+      c2.beginPath();
+      c2.arc(x,y,Math.max(1.6,w*.004),0,Math.PI*2);
+      c2.fill();
+    }else{
+      const life=(phase-.48)/.52;
+      const ease=1-Math.pow(1-life,2);
+      const count=64+Math.floor(rand01(seed+7)*54);
+      const radius=Math.min(w,h)*(.22+rand01(seed+8)*.2)*ease;
+      const fade=Math.max(0,1-life);
+
+      const flash=c2.createRadialGradient(burstX,burstY,0,burstX,burstY,radius*.68);
+      flash.addColorStop(0,alpha('#ffffff',fade));
+      flash.addColorStop(.18,alpha(hot,fade*.78));
+      flash.addColorStop(1,alpha(main,0));
+      c2.fillStyle=flash;
+      c2.beginPath();
+      c2.arc(burstX,burstY,radius*.68,0,Math.PI*2);
+      c2.fill();
+
+      const core=c2.createRadialGradient(burstX,burstY,0,burstX,burstY,radius*.32);
+      core.addColorStop(0,alpha('#ffffff',fade*.95));
+      core.addColorStop(.35,alpha(hot,fade*.72));
+      core.addColorStop(1,alpha(main,0));
+      c2.fillStyle=core;
+      c2.beginPath();
+      c2.arc(burstX,burstY,radius*.32,0,Math.PI*2);
+      c2.fill();
+
+      for(let p=0;p<count;p++){
+        const ps=seed+p*9.13;
+        const angle=Math.PI*2*(p/count+rand01(ps)*.08);
+        const spread=.58+rand01(ps+1)*.7;
+        const px=burstX+Math.cos(angle)*radius*spread+Math.sin(life*Math.PI+ps)*4;
+        const py=burstY+Math.sin(angle)*radius*spread+life*life*h*.18;
+        const spark=mixColor(main,p%3===0?'#ffffff':pal.a,rand01(ps+2)*.45);
+        c2.fillStyle=alpha(spark,fade*(.72+rand01(ps+3)*.28));
+        c2.shadowColor=spark;
+        c2.shadowBlur=24*fade;
+        c2.beginPath();
+        c2.arc(px,py,Math.max(1.8,Math.min(w,h)*(.005+rand01(ps+4)*.007)*fade),0,Math.PI*2);
+        c2.fill();
+
+        if(p%2===0){
+          c2.strokeStyle=alpha(spark,fade*.58);
+          c2.lineWidth=Math.max(1.3,Math.min(w,h)*.0038);
+          c2.beginPath();
+          c2.moveTo(burstX+Math.cos(angle)*radius*spread*.46,burstY+Math.sin(angle)*radius*spread*.46);
+          c2.lineTo(px,py);
+          c2.stroke();
+        }
+      }
+
+      c2.strokeStyle=alpha(hot,fade*.82);
+      c2.lineWidth=Math.max(2,Math.min(w,h)*.009);
+      c2.shadowColor=main;
+      c2.shadowBlur=36*fade;
+      c2.beginPath();
+      c2.arc(burstX,burstY,radius*.82,0,Math.PI*2);
+      c2.stroke();
+    }
+  }
+  c2.restore();
+
+  const haze=c2.createRadialGradient(w*.5,h*1.08,0,w*.5,h*1.08,h*.55);
+  haze.addColorStop(0,alpha(mixColor(pal.a,pal.b,.5),.14));
+  haze.addColorStop(1,alpha(pal.bg,0));
+  c2.fillStyle=haze;
+  c2.fillRect(0,0,w,h);
 }
 
 function texNeon(c2,w,h,t,pal){
@@ -574,43 +842,94 @@ function texCascade(c2,w,h,t,pal,polyId){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
 
-  const bins=Math.max(18,Math.floor(w/10));
+  const bins=Math.max(24,Math.floor(w/7));
   const binW=w/bins;
   const heights=Array(bins).fill(0);
-  const pieces=Math.max(80,Math.floor((w*h)/260));
+  const pieces=Math.max(95,Math.floor((w*h)/360));
   const baseSeed=(polyId||1)*0.017;
+  const fillT=Math.max(9,Math.min(16,Math.sqrt(w*h)/34));
+  const flushT=.82;
+  const restT=1;
+  const cycleT=30;
+  const holdT=Math.max(0,cycleT-fillT-flushT-restT);
+  const phaseT=((t%cycleT)+cycleT)%cycleT;
+  const flushStartT=fillT+holdT;
+  const spawnGap=flushStartT/pieces;
+  const flushing=phaseT>=flushStartT&&phaseT<flushStartT+flushT;
+  const resting=phaseT>=flushStartT+flushT;
+  const localT=flushing?flushStartT:phaseT;
+  const flushP=flushing?(phaseT-flushStartT)/flushT:0;
+  const flushEase=flushP*flushP*(3-2*flushP);
+  const pushDist=Math.max(w,h)*1.45;
+  if(resting) return;
 
   for(let i=0;i<pieces;i++){
     const seed=baseSeed+i*9.73;
-    const spawnT=i*.52;
-    if(t<spawnT) break;
+    const spawnT=i*spawnGap;
 
     const size=8+rand01(seed+1)*Math.max(10,w*.05);
-    const span=Math.max(1,Math.ceil(size/binW));
-    const startBin=Math.min(bins-span,Math.floor(rand01(seed+2)*bins));
+    const span=Math.min(bins,Math.max(1,Math.ceil(size*.85/binW)));
+    const targetBin=Math.min(bins-span,Math.floor(rand01(seed+2)*(bins-span+1)));
     const speed=36+rand01(seed+3)*28;
     const rotation=rand01(seed+4)*Math.PI*2;
     const shape=Math.floor(rand01(seed+5)*3);
     const mix=rand01(seed+6);
     const color=mixColor(pal.a,pal.b,mix);
-    const support=Math.max(...heights.slice(startBin,startBin+span));
-    if(support>=h-size*.8) continue;
-    const impactY=Math.max(size*.75,h-support-size*.5);
+    let startBin=targetBin;
+    let support=Infinity;
+    let bestScore=Infinity;
+    for(let s=0;s<=bins-span;s++){
+      let minH=Infinity,maxH=0,sumH=0;
+      for(let b=s;b<s+span;b++){
+        const hb=heights[b];
+        minH=Math.min(minH,hb);
+        maxH=Math.max(maxH,hb);
+        sumH+=hb;
+      }
+      const avgH=sumH/span;
+      const score=maxH*1.55+avgH*.25+(maxH-minH)*.85+Math.abs(s-targetBin)*binW*.02;
+      if(score<bestScore){
+        bestScore=score;
+        startBin=s;
+        support=maxH;
+      }
+    }
+    const settledSupport=Math.min(support,Math.max(0,h-size*1.1));
+    const impactY=Math.max(size*.75,h-settledSupport-size*.5);
     const impactT=spawnT+(impactY+size)/speed;
     const x=(startBin+span*.5)*binW;
+    const stackHeight=size*(.32+rand01(seed+7)*.1);
+    for(let b=startBin;b<startBin+span;b++){
+      const center=startBin+span*.5-.5;
+      const footprint=span<=1?1:1-Math.abs(b-center)/(span*.65);
+      const packedHeight=settledSupport+stackHeight*Math.max(.62,footprint);
+      heights[b]=Math.min(h,Math.max(heights[b],packedHeight));
+    }
+    if(localT<spawnT) continue;
 
-    if(t<impactT){
-      const y=-size+(t-spawnT)*speed;
-      drawShard(c2,x,y,size,shape,color,rotation+(t-spawnT)*1.7);
+    const drawCascadeShard=(x0,y0,rot0)=>{
+      if(!flushing){
+        drawShard(c2,x0,y0,size,shape,color,rot0);
+        return;
+      }
+      const side=x0<w*.5?-1:1;
+      const pushX=side*pushDist*(.55+rand01(seed+8)*.72)*flushEase;
+      const pushY=pushDist*(rand01(seed+9)-.62)*flushEase-Math.sin(flushP*Math.PI)*h*.16;
+      drawShard(c2,x0+pushX,y0+pushY,size,shape,color,rot0+side*flushEase*7.5);
+    };
+
+    if(flushing){
+      drawCascadeShard(x,impactY,rotation);
       continue;
     }
 
-    drawShard(c2,x,impactY,size,shape,color,rotation);
-
-    const stackHeight=Math.max(size*.7,size*(.75+rand01(seed+7)*.2));
-    for(let b=startBin;b<startBin+span;b++){
-      heights[b]=Math.min(h,Math.max(heights[b],support+stackHeight));
+    if(localT<impactT){
+      const y=-size+(localT-spawnT)*speed;
+      drawCascadeShard(x,y,rotation+(localT-spawnT)*1.7);
+      continue;
     }
+
+    drawCascadeShard(x,impactY,rotation);
   }
 }
 
