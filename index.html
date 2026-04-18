@@ -182,9 +182,13 @@ body { display: flex; flex-direction: column; }
 .ph {
   height:34px; display:flex; align-items:center; padding:0 14px; gap:8px;
   font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-dim);
-  border-bottom:1px solid var(--border); flex-shrink:0;
+  border-bottom:1px solid var(--border); flex-shrink:0; cursor:pointer;
 }
+.ph:hover { color:var(--text); background:rgba(255,255,255,.025); }
 .ph em { color:var(--accent); font-style:normal; }
+.chev { color:var(--border-hi); font-size:10px; transition:transform .15s; }
+.ph.collapsed .chev { transform:rotate(-90deg); }
+.section-body.collapsed { display:none; }
 
 /* poly list */
 #plist {
@@ -415,7 +419,8 @@ input[type=checkbox] {
 
   <!-- RIGHT PANEL -->
   <div id="panel">
-    <div class="pblock">
+    <div class="ph" onclick="toggleSection('tools-body', this)"><span class="chev">▾</span><em>◆</em> Tools</div>
+    <div class="pblock section-body" id="tools-body">
       <div class="pbrand">
         <div class="logo">MAPPG <span>/ STUDIO</span></div>
         <div class="out-ind">
@@ -454,8 +459,7 @@ input[type=checkbox] {
       <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
     </div>
 
-    <div class="ph" style="border-top:1px solid var(--border)"><em>◇</em> Shape Tools</div>
-    <div class="props">
+    <div class="props section-body" id="shape-tools-body">
       <div class="pr">
         <span class="pl">Edge</span>
         <button class="vbtn" type="button" id="btn-edge-curve" onclick="toggleHoveredEdgeCurve()">HOVER EDGE + C</button>
@@ -467,14 +471,22 @@ input[type=checkbox] {
       <button class="vbtn" type="button" id="btn-adj-create" onclick="createAdjacentFromSelection()">CREATE ADJACENT</button>
     </div>
 
-    <div class="ph"><em>◈</em> Polygons <div style="flex:1"></div><span id="pcnt" style="color:var(--accent)">0</span></div>
-    <div id="plist"><div class="empty" id="emsg">No polygons yet.<br>Use Draw tool to start.</div></div>
+    <div class="ph" onclick="toggleSection('polygons-body', this)"><span class="chev">▾</span><em>◈</em> Polygons <div style="flex:1"></div><span id="pcnt" style="color:var(--accent)">0</span></div>
+    <div id="polygons-body" class="section-body"><div id="plist"><div class="empty" id="emsg">No polygons yet.<br>Use Draw tool to start.</div></div></div>
 
-    <div class="ph" style="border-top:1px solid var(--border)"><em>◉</em> Texture / Effect</div>
-    <div id="tsec">
+    <div class="ph" style="border-top:1px solid var(--border)" onclick="toggleSection('texture-body', this)"><span class="chev">▾</span><em>◉</em> Texture</div>
+    <div id="texture-body" class="section-body">
+      <div id="tsec">
       <div class="nosel" id="nosel">Select a polygon<br>to assign a texture</div>
       <div id="tcontent" style="display:none">
         <div class="tgrid" id="tgrid"></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="ph" style="border-top:1px solid var(--border)" onclick="toggleSection('effects-body', this)"><span class="chev">▾</span><em>◎</em> Effects</div>
+    <div id="effects-body" class="section-body">
+      <div id="effects-content" style="display:none">
         <div class="props">
           <div class="pr">
             <span class="pl">Opacity</span>
@@ -685,6 +697,13 @@ function writeLS(data) {
   try { localStorage.setItem('mappg_state', JSON.stringify(data)); } catch(e) {}
 }
 
+function toggleSection(id, header) {
+  const body = document.getElementById(id);
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  header?.classList.toggle('collapsed', collapsed);
+}
+
 // Poll for output window acknowledgement via localStorage
 window.addEventListener('storage', e => {
   if (e.key === 'mappg_ready') { setOutputLive(true); broadcast(); }
@@ -745,7 +764,7 @@ function updateHint() {
       ? `${wip.length} pts — double-click or click first point to close`
       : 'Click to start drawing a polygon';
   } else {
-    h.textContent = 'Click to select • Drag points or shape • Click edge to add point • Alt-click point to remove • Hover edge + C curve • A mark adjacent edge';
+    h.textContent = 'Click to select • Drag points/curve handles • Click edge to add point • Alt-click point to remove • Hover edge + C curve • A mark adjacent edge';
   }
 }
 
@@ -784,6 +803,7 @@ wrap.addEventListener('mousemove', e => {
   if (tool === 'select' && !dragging) {
     hoverEdit = selId ? getEditTarget(selId, x, y) : null;
     if (hoverEdit?.type === 'vertex') wrap.style.cursor = e.altKey && !canDeleteVertex(hoverEdit.polyId, hoverEdit.vertIdx) ? 'not-allowed' : 'grab';
+    else if (hoverEdit?.type === 'control') wrap.style.cursor = 'grab';
     else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
     else wrap.style.cursor = 'default';
     syncEdgeCurveUI();
@@ -795,6 +815,9 @@ wrap.addEventListener('mousemove', e => {
   if (dragging.type === 'vertex') {
     const p = polys.find(p=>p.id===dragging.polyId);
     if (p) { moveVertexTo(dragging.polyId, dragging.vertIdx, x, y); broadcast(); }
+  } else if (dragging.type === 'control') {
+    moveBezierControlTo(dragging.polyId, dragging.edgeIdx, dragging.control, x, y);
+    broadcast();
   } else if (dragging.type === 'poly') {
     const p = polys.find(p=>p.id===dragging.polyId);
     if (p) {
@@ -826,12 +849,13 @@ wrap.addEventListener('mousedown', e => {
     return;
   }
 
+  if (editTarget?.type === 'control') {
+    dragging = { type:'control', polyId:editTarget.polyId, edgeIdx:editTarget.edgeIdx, control:editTarget.control };
+    wrap.style.cursor = 'grabbing';
+    return;
+  }
+
   if (editTarget?.type === 'edge') {
-    const p = polys.find(poly=>poly.id===editTarget.polyId);
-    if (p && isEdgeLinked(p, editTarget.edgeIdx)) {
-      document.getElementById('hint').textContent = 'Linked shared edges cannot be split. Move endpoints or create a new polygon.';
-      return;
-    }
     insertVertex(editTarget.polyId, editTarget.insertIdx, x, y);
     dragging = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx };
     hoverEdit = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx, x, y };
@@ -862,6 +886,7 @@ wrap.addEventListener('mouseup', () => {
   hoverEdit = tool === 'select' && selId ? getEditTarget(selId, mouse.x, mouse.y) : null;
   if (tool === 'draw') wrap.style.cursor = 'crosshair';
   else if (hoverEdit?.type === 'vertex') wrap.style.cursor = 'grab';
+  else if (hoverEdit?.type === 'control') wrap.style.cursor = 'grab';
   else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
   else wrap.style.cursor = 'default';
   syncEdgeCurveUI();
@@ -969,16 +994,17 @@ function select(id) {
   document.querySelectorAll('.pi').forEach(el=>el.classList.toggle('sel', el.dataset.id==id));
   document.getElementById('st-sel').textContent = id ? `P${id%10000}` : '—';
   const tc = document.getElementById('tcontent');
+  const ec = document.getElementById('effects-content');
   const ns = document.getElementById('nosel');
   if (id) {
-    tc.style.display='block'; ns.style.display='none';
+    tc.style.display='block'; ec.style.display='block'; ns.style.display='none';
     const p = polys.find(p=>p.id===id);
     if (p) {
       normalizePolyGeometry(p);
       syncPropsUI(p);
     }
   } else {
-    tc.style.display='none'; ns.style.display='block';
+    tc.style.display='none'; ec.style.display='none'; ns.style.display='block';
     syncEdgeCurveUI();
     syncAdjacentUI();
     closeColorPopover();
@@ -1349,6 +1375,46 @@ function moveVertexTo(polyId, vertIdx, x, y) {
   });
 }
 
+function moveBezierControlTo(polyId, edgeIdx, control, x, y) {
+  const source = polys.find(poly=>poly.id===polyId);
+  if (!source) return;
+  normalizePolyGeometry(source);
+  ensureExplicitBezier(source, edgeIdx);
+  const bez = source.segmentBezier[edgeIdx];
+  if (!bez) return;
+  const key = control === 'cp2' ? 'cp2' : 'cp1';
+  const old = bez[key];
+  const dx = x - old[0], dy = y - old[1];
+  if (!dx && !dy) return;
+  const linkId = source.segmentLinkIds[edgeIdx];
+  if (!linkId) {
+    bez[key] = [x, y];
+    return;
+  }
+  const sourceStart = source.pointIds[edgeIdx];
+  polys.forEach(poly => {
+    normalizePolyGeometry(poly);
+    poly.segmentLinkIds.forEach((id, idx) => {
+      if (id !== linkId) return;
+      ensureExplicitBezier(poly, idx);
+      const target = poly.segmentBezier[idx];
+      if (!target) return;
+      const sameDirection = poly.pointIds[idx] === sourceStart;
+      const targetKey = sameDirection ? key : (key === 'cp1' ? 'cp2' : 'cp1');
+      target[targetKey] = [target[targetKey][0] + dx, target[targetKey][1] + dy];
+    });
+  });
+}
+
+function ensureExplicitBezier(p, edgeIdx) {
+  normalizePolyGeometry(p);
+  p.segmentCurves[edgeIdx] = true;
+  if (!p.segmentBezier[edgeIdx]) {
+    const seg = curveControls(p.points, edgeIdx);
+    p.segmentBezier[edgeIdx] = { cp1:[...seg.cp1], cp2:[...seg.cp2] };
+  }
+}
+
 function canDeleteVertex(polyId, vertIdx) {
   const p = polys.find(poly=>poly.id===polyId);
   if (!p || p.points.length <= 3) return false;
@@ -1362,7 +1428,13 @@ function insertVertex(polyId, insertIdx, x, y) {
   if (!p) return;
   normalizePolyGeometry(p);
   const prevIdx = (insertIdx - 1 + p.points.length) % p.points.length;
-  if (isEdgeLinked(p, prevIdx)) return;
+  if (isEdgeLinked(p, prevIdx)) {
+    splitLinkedEdge(p, prevIdx, x, y);
+    select(polyId);
+    refreshList();
+    broadcast();
+    return;
+  }
   const carryCurve = !!p.segmentCurves[prevIdx];
   p.points.splice(insertIdx, 0, [x, y]);
   p.pointIds.splice(insertIdx, 0, uid('pt'));
@@ -1371,6 +1443,62 @@ function insertVertex(polyId, insertIdx, x, y) {
   p.segmentBezier.splice(insertIdx, 0, null);
   p.segmentBezier[prevIdx] = null;
   p.segmentCurves[prevIdx] = carryCurve;
+}
+
+function splitLinkedEdge(source, edgeIdx, x, y) {
+  normalizePolyGeometry(source);
+  const linkId = source.segmentLinkIds[edgeIdx];
+  if (!linkId) return;
+  const newPointId = uid('pt');
+  const newLinkA = uid('edge');
+  const newLinkB = uid('edge');
+  const sourceStart = source.pointIds[edgeIdx];
+  const sourceEnd = source.pointIds[(edgeIdx + 1) % source.points.length];
+  const split = { x, y };
+
+  polys.forEach(poly => {
+    normalizePolyGeometry(poly);
+    for (let idx = poly.segmentLinkIds.length - 1; idx >= 0; idx--) {
+      if (poly.segmentLinkIds[idx] !== linkId) continue;
+      const sameDirection = poly.pointIds[idx] === sourceStart && poly.pointIds[(idx + 1) % poly.points.length] === sourceEnd;
+      const insertIdx = idx + 1;
+      const wasCurved = !!poly.segmentCurves[idx];
+      const bez = wasCurved ? splitBezierForEdge(poly, idx, split) : null;
+
+      poly.points.splice(insertIdx, 0, [x, y]);
+      poly.pointIds.splice(insertIdx, 0, newPointId);
+      poly.segmentCurves.splice(insertIdx, 0, wasCurved);
+      poly.segmentLinkIds.splice(insertIdx, 0, sameDirection ? newLinkB : newLinkA);
+      poly.segmentBezier.splice(insertIdx, 0, sanitizeBezier(bez?.second));
+
+      poly.segmentCurves[idx] = wasCurved;
+      poly.segmentLinkIds[idx] = sameDirection ? newLinkA : newLinkB;
+      poly.segmentBezier[idx] = sanitizeBezier(bez?.first);
+    }
+  });
+}
+
+function splitBezierForEdge(p, edgeIdx, splitPoint) {
+  ensureExplicitBezier(p, edgeIdx);
+  const seg = curveSegmentFromArrays(p.points, edgeIdx, p.segmentBezier);
+  let bestT = 0.5, bestD = Infinity;
+  for (let i = 1; i < 20; i++) {
+    const t = i / 20;
+    const px = cubicAt(seg.p1[0], seg.cp1[0], seg.cp2[0], seg.p2[0], t);
+    const py = cubicAt(seg.p1[1], seg.cp1[1], seg.cp2[1], seg.p2[1], t);
+    const d = dist(px, py, splitPoint.x, splitPoint.y);
+    if (d < bestD) { bestD = d; bestT = t; }
+  }
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const p01 = lerp(seg.p1, seg.cp1, bestT);
+  const p12 = lerp(seg.cp1, seg.cp2, bestT);
+  const p23 = lerp(seg.cp2, seg.p2, bestT);
+  const p012 = lerp(p01, p12, bestT);
+  const p123 = lerp(p12, p23, bestT);
+  return {
+    first: { cp1:p01, cp2:p012 },
+    second: { cp1:p123, cp2:p23 },
+  };
 }
 
 function deleteVertex(polyId, vertIdx) {
@@ -2796,6 +2924,13 @@ function getEditTarget(polyId, x, y) {
     if (dist(x, y, vx, vy) < 9) return { type:'vertex', polyId, vertIdx:i, x:vx, y:vy };
   }
 
+  for (let i=0;i<p.points.length;i++) {
+    if (!curves[i]) continue;
+    const seg = curveSegmentFromArrays(p.points, i, p.segmentBezier);
+    if (dist(x, y, seg.cp1[0], seg.cp1[1]) < 9) return { type:'control', polyId, edgeIdx:i, control:'cp1', x:seg.cp1[0], y:seg.cp1[1] };
+    if (dist(x, y, seg.cp2[0], seg.cp2[1]) < 9) return { type:'control', polyId, edgeIdx:i, control:'cp2', x:seg.cp2[0], y:seg.cp2[1] };
+  }
+
   let best = null;
   const edgeSegments = samplePathSegments(p.points, curves, 10, p.segmentBezier);
   for (const seg of edgeSegments) {
@@ -2917,12 +3052,30 @@ function render(ts) {
           if (!isCurved) return;
           const seg = curveSegmentFromArrays(p.points, edgeIdx, p.segmentBezier);
           ctx.save();
+          ctx.strokeStyle = 'rgba(255, 209, 102, 0.28)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(seg.p1[0], seg.p1[1]);
+          ctx.lineTo(seg.cp1[0], seg.cp1[1]);
+          ctx.moveTo(seg.p2[0], seg.p2[1]);
+          ctx.lineTo(seg.cp2[0], seg.cp2[1]);
+          ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(seg.p1[0], seg.p1[1]);
           ctx.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
           ctx.strokeStyle = 'rgba(255, 209, 102, 0.85)';
           ctx.lineWidth = 2;
           ctx.stroke();
+          for (const [cp, key] of [[seg.cp1, 'cp1'], [seg.cp2, 'cp2']]) {
+            const isHover = hoverEdit?.polyId === p.id && hoverEdit.type === 'control' && hoverEdit.edgeIdx === edgeIdx && hoverEdit.control === key;
+            ctx.beginPath();
+            ctx.arc(cp[0], cp[1], 5, 0, Math.PI * 2);
+            ctx.fillStyle = isHover ? '#ffffff' : '#ffd166';
+            ctx.fill();
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
           ctx.restore();
         });
 
