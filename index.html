@@ -123,8 +123,10 @@ body { display: flex; flex-direction: column; }
 #panel {
   width:272px; flex-shrink:0;
   background:var(--panel); border-left:1px solid var(--border);
-  display:flex; flex-direction:column; overflow:hidden;
+  display:block; overflow-y:auto;
 }
+#panel::-webkit-scrollbar { width:3px; }
+#panel::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
 
 .pblock {
   padding:12px;
@@ -186,11 +188,8 @@ body { display: flex; flex-direction: column; }
 
 /* poly list */
 #plist {
-  overflow-y:auto; flex-shrink:0;
-  max-height:180px;
+  flex-shrink:0;
 }
-#plist::-webkit-scrollbar { width:3px; }
-#plist::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
 
 .pi {
   height:32px; display:flex; align-items:center; padding:0 10px; gap:8px;
@@ -215,10 +214,8 @@ body { display: flex; flex-direction: column; }
 
 /* texture section */
 #tsec {
-  flex:1; overflow-y:auto; border-top:1px solid var(--border);
+  border-top:1px solid var(--border);
 }
-#tsec::-webkit-scrollbar { width:3px; }
-#tsec::-webkit-scrollbar-thumb { background:var(--border-hi); border-radius:2px; }
 
 .nosel { padding:28px 14px; text-align:center; color:var(--text-dim); font-size:10px; line-height:1.9; }
 
@@ -457,6 +454,19 @@ input[type=checkbox] {
       <button class="launch" onclick="launchOutput()">▶ LAUNCH OUTPUT</button>
     </div>
 
+    <div class="ph" style="border-top:1px solid var(--border)"><em>◇</em> Shape Tools</div>
+    <div class="props">
+      <div class="pr">
+        <span class="pl">Edge</span>
+        <button class="vbtn" type="button" id="btn-edge-curve" onclick="toggleHoveredEdgeCurve()">HOVER EDGE + C</button>
+      </div>
+      <div class="pr">
+        <span class="pl">Adjacent</span>
+        <button class="vbtn" type="button" id="btn-adj-edge" onclick="toggleHoveredAdjacentEdge()">MARK EDGE [A]</button>
+      </div>
+      <button class="vbtn" type="button" id="btn-adj-create" onclick="createAdjacentFromSelection()">CREATE ADJACENT</button>
+    </div>
+
     <div class="ph"><em>◈</em> Polygons <div style="flex:1"></div><span id="pcnt" style="color:var(--accent)">0</span></div>
     <div id="plist"><div class="empty" id="emsg">No polygons yet.<br>Use Draw tool to start.</div></div>
 
@@ -486,10 +496,6 @@ input[type=checkbox] {
               <option value="lighter">Add</option>
               <option value="lighten">Lighten</option>
             </select>
-          </div>
-          <div class="pr">
-            <span class="pl">Edges</span>
-            <button class="vbtn" type="button" id="btn-edge-curve" onclick="toggleHoveredEdgeCurve()">HOVER EDGE + C</button>
           </div>
           <div class="pr">
             <span class="pl">Color A</span>
@@ -632,9 +638,11 @@ let polys    = [];
 let selId    = null;
 let drawing  = false;
 let wip      = [];       // work-in-progress points
+let wipMeta  = null;     // optional point/edge metadata for adjacent-shape drafts
 let mouse    = { x:0, y:0 };
 let dragging = null;     // { type:'vertex'|'poly', polyId, vertIdx?, startMouse?, startPts? }
 let hoverEdit = null;    // { type:'vertex'|'edge', polyId, vertIdx?, insertIdx?, x, y }
+let adjacentSelection = { polyId:null, edges:[] };
 let colorPopover = { key:null };
 let videos   = {};       // polyId → <video>
 let colorN   = 0;
@@ -645,6 +653,11 @@ const DEFAULT_TEXTURE_COLORS = {
   colorB: '#a855f7',
   colorBg: '#05070c',
 };
+let uidSeq = 1;
+
+function uid(prefix) {
+  return `${prefix}_${Date.now().toString(36)}_${uidSeq++}`;
+}
 
 Object.defineProperty(window, 'mappgState', {
   get() {
@@ -708,7 +721,7 @@ const TEXTURES = [
 // ─────────────────────────────────────────────
 function setTool(t) {
   tool = t;
-  if (t !== 'draw') { drawing = false; wip = []; }
+  if (t !== 'draw') { drawing = false; wip = []; wipMeta = null; }
   if (t !== 'select') hoverEdit = null;
   if (t !== 'select') closeColorPopover();
   document.getElementById('btn-draw').classList.toggle('on', t==='draw');
@@ -717,6 +730,7 @@ function setTool(t) {
   wrap.style.cursor = t === 'draw' ? 'crosshair' : 'default';
   updateHint();
   syncEdgeCurveUI();
+  syncAdjacentUI();
 }
 
 function updateHint() {
@@ -726,7 +740,7 @@ function updateHint() {
       ? `${wip.length} pts — double-click or click first point to close`
       : 'Click to start drawing a polygon';
   } else {
-    h.textContent = 'Click to select • Drag points or shape • Click edge to add point • Alt-click point to remove • Hover edge + C to curve';
+    h.textContent = 'Click to select • Drag points or shape • Click edge to add point • Alt-click point to remove • Hover edge + C curve • A mark adjacent edge';
   }
 }
 
@@ -735,9 +749,10 @@ document.addEventListener('keydown', e => {
   if (e.key==='d'||e.key==='D') setTool('draw');
   if (e.key==='s'||e.key==='S') setTool('select');
   if (e.key==='c'||e.key==='C') toggleHoveredEdgeCurve();
+  if (e.key==='a'||e.key==='A') toggleHoveredAdjacentEdge();
   if (e.key==='x'||e.key==='X'||e.key==='Delete') deleteSelected();
   if (e.key==='Escape') closeColorPopover();
-  if (e.key==='Escape') { drawing=false; wip=[]; updateHint(); }
+  if (e.key==='Escape') { drawing=false; wip=[]; wipMeta=null; updateHint(); }
 });
 
 document.addEventListener('mousedown', e => {
@@ -763,22 +778,27 @@ wrap.addEventListener('mousemove', e => {
 
   if (tool === 'select' && !dragging) {
     hoverEdit = selId ? getEditTarget(selId, x, y) : null;
-    if (hoverEdit?.type === 'vertex') wrap.style.cursor = e.altKey && !canDeleteVertex(hoverEdit.polyId) ? 'not-allowed' : 'grab';
+    if (hoverEdit?.type === 'vertex') wrap.style.cursor = e.altKey && !canDeleteVertex(hoverEdit.polyId, hoverEdit.vertIdx) ? 'not-allowed' : 'grab';
     else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
     else wrap.style.cursor = 'default';
     syncEdgeCurveUI();
+    syncAdjacentUI();
   }
 
   if (!dragging) return;
 
   if (dragging.type === 'vertex') {
     const p = polys.find(p=>p.id===dragging.polyId);
-    if (p) { p.points[dragging.vertIdx] = [x,y]; broadcast(); }
+    if (p) { moveVertexTo(dragging.polyId, dragging.vertIdx, x, y); broadcast(); }
   } else if (dragging.type === 'poly') {
     const p = polys.find(p=>p.id===dragging.polyId);
     if (p) {
       const dx = x - dragging.startMouse.x, dy = y - dragging.startMouse.y;
-      p.points = dragging.startPts.map(([px,py])=>[px+dx,py+dy]);
+      normalizePolyGeometry(p);
+      dragging.startPts.forEach(([px, py], idx) => {
+        if (isPointShared(p.pointIds[idx])) return;
+        moveVertexTo(p.id, idx, px + dx, py + dy);
+      });
       broadcast();
     }
   }
@@ -802,6 +822,11 @@ wrap.addEventListener('mousedown', e => {
   }
 
   if (editTarget?.type === 'edge') {
+    const p = polys.find(poly=>poly.id===editTarget.polyId);
+    if (p && isEdgeLinked(p, editTarget.edgeIdx)) {
+      document.getElementById('hint').textContent = 'Linked shared edges cannot be split. Move endpoints or create a new polygon.';
+      return;
+    }
     insertVertex(editTarget.polyId, editTarget.insertIdx, x, y);
     dragging = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx };
     hoverEdit = { type:'vertex', polyId:editTarget.polyId, vertIdx:editTarget.insertIdx, x, y };
@@ -812,7 +837,8 @@ wrap.addEventListener('mousedown', e => {
 
   // polygon body?
   for (let i=polys.length-1;i>=0;i--) {
-    if (ptInPoly(x, y, polys[i].points, normalizeSegmentCurves(polys[i]))) {
+    normalizePolyGeometry(polys[i]);
+    if (ptInPoly(x, y, polys[i].points, polys[i].segmentCurves, polys[i].segmentBezier)) {
       select(polys[i].id);
       dragging = { type:'poly', polyId:polys[i].id,
         startMouse:{x,y}, startPts:polys[i].points.map(p=>[...p]) };
@@ -823,6 +849,7 @@ wrap.addEventListener('mousedown', e => {
   select(null);
   hoverEdit = null;
   syncEdgeCurveUI();
+  syncAdjacentUI();
 });
 
 wrap.addEventListener('mouseup', () => {
@@ -833,6 +860,7 @@ wrap.addEventListener('mouseup', () => {
   else if (hoverEdit?.type === 'edge') wrap.style.cursor = 'copy';
   else wrap.style.cursor = 'default';
   syncEdgeCurveUI();
+  syncAdjacentUI();
 });
 
 wrap.addEventListener('mouseleave', () => {
@@ -863,6 +891,12 @@ wrap.addEventListener('click', e => {
   }
 
   wip.push([x,y]);
+  if (wipMeta) {
+    wipMeta.pointIds.push(uid('pt'));
+    wipMeta.segmentCurves.push(false);
+    wipMeta.segmentLinkIds.push(null);
+    wipMeta.segmentBezier.push(null);
+  }
   updateHint();
 });
 
@@ -870,7 +904,15 @@ wrap.addEventListener('dblclick', e => {
   if (tool !== 'draw') return;
   // dblclick fires after 2 click events. Remove the last point that was added
   // by the second click, then close if we have enough points.
-  if (wip.length > 3) wip.pop();
+  if (wip.length > 3) {
+    wip.pop();
+    if (wipMeta) {
+      wipMeta.pointIds.pop();
+      wipMeta.segmentCurves.pop();
+      wipMeta.segmentLinkIds.pop();
+      wipMeta.segmentBezier.pop();
+    }
+  }
   if (wip.length >= 3) closePoly();
 });
 
@@ -879,6 +921,10 @@ wrap.addEventListener('dblclick', e => {
 // ─────────────────────────────────────────────
 function closePoly() {
   if (wip.length < 3) return;
+  const pointIds = wip.map((_, i) => wipMeta?.pointIds?.[i] || uid('pt'));
+  const segmentCurves = wip.map((_, i) => !!wipMeta?.segmentCurves?.[i]);
+  const segmentLinkIds = wip.map((_, i) => wipMeta?.segmentLinkIds?.[i] || null);
+  const segmentBezier = wip.map((_, i) => sanitizeBezier(wipMeta?.segmentBezier?.[i]));
   const p = {
     id: Date.now(),
     points: [...wip],
@@ -886,7 +932,10 @@ function closePoly() {
     opacity: 1,
     speed: 1,
     blend: 'source-over',
-    segmentCurves: Array(wip.length).fill(false),
+    pointIds,
+    segmentCurves,
+    segmentLinkIds,
+    segmentBezier,
     colorA: DEFAULT_TEXTURE_COLORS.colorA,
     colorB: DEFAULT_TEXTURE_COLORS.colorB,
     colorBg: DEFAULT_TEXTURE_COLORS.colorBg,
@@ -901,7 +950,7 @@ function closePoly() {
     color: COLORS[colorN++ % COLORS.length],
   };
   polys.push(p);
-  drawing = false; wip = [];
+  drawing = false; wip = []; wipMeta = null;
   select(p.id);
   refreshList();
   broadcast();
@@ -910,6 +959,7 @@ function closePoly() {
 
 function select(id) {
   selId = id;
+  if (adjacentSelection.polyId && adjacentSelection.polyId !== id) adjacentSelection = { polyId:null, edges:[] };
   document.querySelectorAll('.pi').forEach(el=>el.classList.toggle('sel', el.dataset.id==id));
   document.getElementById('st-sel').textContent = id ? `P${id%10000}` : '—';
   const tc = document.getElementById('tcontent');
@@ -918,12 +968,13 @@ function select(id) {
     tc.style.display='block'; ns.style.display='none';
     const p = polys.find(p=>p.id===id);
     if (p) {
-      normalizeSegmentCurves(p);
+      normalizePolyGeometry(p);
       syncPropsUI(p);
     }
   } else {
     tc.style.display='none'; ns.style.display='block';
     syncEdgeCurveUI();
+    syncAdjacentUI();
     closeColorPopover();
   }
 }
@@ -954,6 +1005,7 @@ function syncPropsUI(p) {
   document.getElementById('textsec').style.display = p.texture==='textscroll' ? 'block':'none';
   document.getElementById('txt-scroll').value = p.scrollText || 'MAPPG';
   syncEdgeCurveUI();
+  syncAdjacentUI();
 }
 
 function setProp(key, val) {
@@ -1064,6 +1116,44 @@ function normalizeSegmentCurves(p) {
   return p.segmentCurves;
 }
 
+function normalizePolyGeometry(p) {
+  if (!p) return p;
+  normalizeSegmentCurves(p);
+  if (!Array.isArray(p.pointIds) || p.pointIds.length !== p.points.length) {
+    p.pointIds = p.points.map((_, i) => typeof p.pointIds?.[i] === 'string' ? p.pointIds[i] : uid('pt'));
+  }
+  if (!Array.isArray(p.segmentLinkIds) || p.segmentLinkIds.length !== p.points.length) {
+    p.segmentLinkIds = p.points.map((_, i) => typeof p.segmentLinkIds?.[i] === 'string' ? p.segmentLinkIds[i] : null);
+  }
+  if (!Array.isArray(p.segmentBezier) || p.segmentBezier.length !== p.points.length) {
+    p.segmentBezier = p.points.map((_, i) => sanitizeBezier(p.segmentBezier?.[i]));
+  } else {
+    p.segmentBezier = p.segmentBezier.map(sanitizeBezier);
+  }
+  return p;
+}
+
+function sanitizeBezier(b) {
+  if (!b || !Array.isArray(b.cp1) || !Array.isArray(b.cp2)) return null;
+  const cp1 = [Number(b.cp1[0]), Number(b.cp1[1])];
+  const cp2 = [Number(b.cp2[0]), Number(b.cp2[1])];
+  return cp1.every(Number.isFinite) && cp2.every(Number.isFinite) ? { cp1, cp2 } : null;
+}
+
+function segmentCurve(p, i) {
+  normalizePolyGeometry(p);
+  if (!p.segmentCurves[i]) return null;
+  const p1 = p.points[i];
+  const p2 = p.points[(i + 1) % p.points.length];
+  const explicit = p.segmentBezier[i];
+  if (explicit) return { p1, p2, cp1: explicit.cp1, cp2: explicit.cp2 };
+  return curveControls(p.points, i);
+}
+
+function reverseBezier(b) {
+  return b ? { cp1: [...b.cp2], cp2: [...b.cp1] } : null;
+}
+
 function syncEdgeCurveUI() {
   const btn = document.getElementById('btn-edge-curve');
   if (!btn) return;
@@ -1082,42 +1172,215 @@ function toggleHoveredEdgeCurve() {
   if (tool !== 'select' || hoverEdit?.type !== 'edge' || hoverEdit.polyId !== selId) return;
   const p = polys.find(poly=>poly.id===selId);
   if (!p) return;
-  const curves = normalizeSegmentCurves(p);
-  curves[hoverEdit.edgeIdx] = !curves[hoverEdit.edgeIdx];
+  normalizePolyGeometry(p);
+  const next = !p.segmentCurves[hoverEdit.edgeIdx];
+  const linkId = p.segmentLinkIds[hoverEdit.edgeIdx];
+  if (linkId) {
+    const baseSeg = next ? curveControls(p.points, hoverEdit.edgeIdx) : null;
+    const baseBezier = baseSeg ? { cp1:[...baseSeg.cp1], cp2:[...baseSeg.cp2] } : null;
+    const baseStartId = p.pointIds[hoverEdit.edgeIdx];
+    polys.forEach(poly => {
+      normalizePolyGeometry(poly);
+      poly.segmentLinkIds.forEach((id, edgeIdx) => {
+        if (id !== linkId) return;
+        poly.segmentCurves[edgeIdx] = next;
+        poly.segmentBezier[edgeIdx] = next
+          ? (poly.pointIds[edgeIdx] === baseStartId ? { cp1:[...baseBezier.cp1], cp2:[...baseBezier.cp2] } : reverseBezier(baseBezier))
+          : null;
+      });
+    });
+  } else {
+    p.segmentCurves[hoverEdit.edgeIdx] = next;
+    p.segmentBezier[hoverEdit.edgeIdx] = null;
+  }
   syncEdgeCurveUI();
+  broadcast();
+}
+
+function syncAdjacentUI() {
+  const edgeBtn = document.getElementById('btn-adj-edge');
+  const createBtn = document.getElementById('btn-adj-create');
+  if (!edgeBtn || !createBtn) return;
+  const activeEdge = hoverEdit?.type === 'edge' && hoverEdit.polyId === selId;
+  edgeBtn.disabled = !activeEdge;
+  edgeBtn.textContent = activeEdge && isAdjacentEdgeSelected(hoverEdit.polyId, hoverEdit.edgeIdx) ? 'UNMARK EDGE [A]' : 'MARK EDGE [A]';
+  const count = adjacentSelection.edges.length;
+  createBtn.disabled = !selId || count < 1;
+  createBtn.textContent = count ? `CREATE ADJACENT (${count})` : 'CREATE ADJACENT';
+}
+
+function isAdjacentEdgeSelected(polyId, edgeIdx) {
+  return adjacentSelection.polyId === polyId && adjacentSelection.edges.includes(edgeIdx);
+}
+
+function toggleHoveredAdjacentEdge() {
+  if (tool !== 'select' || hoverEdit?.type !== 'edge' || hoverEdit.polyId !== selId) return;
+  const p = polys.find(poly=>poly.id===selId);
+  if (!p) return;
+  if (adjacentSelection.polyId !== selId) adjacentSelection = { polyId:selId, edges:[] };
+  const edges = adjacentSelection.edges;
+  const existing = edges.indexOf(hoverEdit.edgeIdx);
+  if (existing >= 0) edges.splice(existing, 1);
+  else edges.push(hoverEdit.edgeIdx);
+  adjacentSelection.edges = contiguousEdgeChain(edges, p.points.length);
+  syncAdjacentUI();
+}
+
+function contiguousEdgeChain(edges, count) {
+  const unique = [...new Set(edges)].sort((a,b)=>a-b);
+  if (unique.length <= 1) return unique;
+  const groups = [];
+  let group = [unique[0]];
+  for (let i=1;i<unique.length;i++) {
+    if (unique[i] === unique[i-1] + 1) group.push(unique[i]);
+    else { groups.push(group); group = [unique[i]]; }
+  }
+  groups.push(group);
+  if (unique.includes(0) && unique.includes(count - 1) && groups.length > 1) {
+    groups[0] = groups[groups.length - 1].concat(groups[0]);
+    groups.pop();
+  }
+  return groups.sort((a,b)=>b.length-a.length)[0].map(v=>(v+count)%count);
+}
+
+function orderedAdjacentEdges(p) {
+  if (adjacentSelection.polyId !== p.id) return [];
+  const chain = contiguousEdgeChain(adjacentSelection.edges, p.points.length);
+  if (chain.length <= 1) return chain;
+  const set = new Set(chain);
+  const start = chain.find(edge => !set.has((edge - 1 + p.points.length) % p.points.length));
+  if (start == null) return chain;
+  const ordered = [];
+  for (let edge = start; set.has(edge); edge = (edge + 1) % p.points.length) ordered.push(edge);
+  return ordered;
+}
+
+function createAdjacentFromSelection() {
+  const source = polys.find(p=>p.id===adjacentSelection.polyId);
+  if (!source) return;
+  normalizePolyGeometry(source);
+  const edges = orderedAdjacentEdges(source);
+  if (!edges.length) return;
+
+  edges.forEach(edgeIdx => {
+    if (!source.segmentLinkIds[edgeIdx]) source.segmentLinkIds[edgeIdx] = uid('edge');
+    if (source.segmentCurves[edgeIdx] && !source.segmentBezier[edgeIdx]) {
+      const seg = curveControls(source.points, edgeIdx);
+      source.segmentBezier[edgeIdx] = { cp1:[...seg.cp1], cp2:[...seg.cp2] };
+    }
+  });
+
+  const vertexIdxs = [edges[0], ...edges.map(edgeIdx => (edgeIdx + 1) % source.points.length)];
+  const revVertexIdxs = [...vertexIdxs].reverse();
+  const revEdges = [...edges].reverse();
+  wip = revVertexIdxs.map(idx => [...source.points[idx]]);
+  wipMeta = {
+    pointIds: revVertexIdxs.map(idx => source.pointIds[idx]),
+    segmentCurves: revEdges.map(edgeIdx => !!source.segmentCurves[edgeIdx]),
+    segmentLinkIds: revEdges.map(edgeIdx => source.segmentLinkIds[edgeIdx]),
+    segmentBezier: revEdges.map(edgeIdx => reverseBezier(source.segmentBezier[edgeIdx])),
+  };
+  while (wipMeta.segmentCurves.length < wip.length) {
+    wipMeta.segmentCurves.push(false);
+    wipMeta.segmentLinkIds.push(null);
+    wipMeta.segmentBezier.push(null);
+  }
+  adjacentSelection = { polyId:null, edges:[] };
+  drawing = true;
+  setTool('draw');
+  updateHint();
   broadcast();
 }
 
 function deleteSelected() {
   if (!selId) return;
   polys = polys.filter(p=>p.id!==selId);
+  adjacentSelection = { polyId:null, edges:[] };
   select(null); refreshList(); broadcast();
 }
 
-function canDeleteVertex(polyId) {
+function isPointShared(pointId) {
+  if (!pointId) return false;
+  let count = 0;
+  polys.forEach(p => {
+    normalizePolyGeometry(p);
+    p.pointIds.forEach(id => { if (id === pointId) count++; });
+  });
+  return count > 1;
+}
+
+function isEdgeLinked(p, edgeIdx) {
+  normalizePolyGeometry(p);
+  return !!p.segmentLinkIds[edgeIdx];
+}
+
+function moveVertexTo(polyId, vertIdx, x, y) {
+  const source = polys.find(poly=>poly.id===polyId);
+  if (!source) return;
+  normalizePolyGeometry(source);
+  const pointId = source.pointIds[vertIdx];
+  const [oldX, oldY] = source.points[vertIdx];
+  const dx = x - oldX, dy = y - oldY;
+  if (!dx && !dy) return;
+  polys.forEach(poly => {
+    normalizePolyGeometry(poly);
+    poly.points.forEach((pt, idx) => {
+      if (poly.pointIds[idx] !== pointId) return;
+      pt[0] += dx;
+      pt[1] += dy;
+    });
+    poly.segmentBezier.forEach((bez, edgeIdx) => {
+      if (!bez) return;
+      if (poly.pointIds[edgeIdx] === pointId) {
+        bez.cp1 = [bez.cp1[0] + dx, bez.cp1[1] + dy];
+      }
+      if (poly.pointIds[(edgeIdx + 1) % poly.points.length] === pointId) {
+        bez.cp2 = [bez.cp2[0] + dx, bez.cp2[1] + dy];
+      }
+    });
+  });
+}
+
+function canDeleteVertex(polyId, vertIdx) {
   const p = polys.find(poly=>poly.id===polyId);
-  return !!p && p.points.length > 3;
+  if (!p || p.points.length <= 3) return false;
+  normalizePolyGeometry(p);
+  const prevIdx = (vertIdx - 1 + p.points.length) % p.points.length;
+  return !(isEdgeLinked(p, vertIdx) || isEdgeLinked(p, prevIdx));
 }
 
 function insertVertex(polyId, insertIdx, x, y) {
   const p = polys.find(poly=>poly.id===polyId);
   if (!p) return;
-  normalizeSegmentCurves(p);
+  normalizePolyGeometry(p);
   const prevIdx = (insertIdx - 1 + p.points.length) % p.points.length;
+  if (isEdgeLinked(p, prevIdx)) return;
   const carryCurve = !!p.segmentCurves[prevIdx];
   p.points.splice(insertIdx, 0, [x, y]);
+  p.pointIds.splice(insertIdx, 0, uid('pt'));
   p.segmentCurves.splice(insertIdx, 0, carryCurve);
+  p.segmentLinkIds.splice(insertIdx, 0, null);
+  p.segmentBezier.splice(insertIdx, 0, null);
+  p.segmentBezier[prevIdx] = null;
   p.segmentCurves[prevIdx] = carryCurve;
 }
 
 function deleteVertex(polyId, vertIdx) {
   const p = polys.find(poly=>poly.id===polyId);
-  if (!p || !canDeleteVertex(polyId)) return;
-  normalizeSegmentCurves(p);
+  if (!p || !canDeleteVertex(polyId, vertIdx)) return;
+  normalizePolyGeometry(p);
   const prevIdx = (vertIdx - 1 + p.points.length) % p.points.length;
+  if (isEdgeLinked(p, prevIdx) || isEdgeLinked(p, vertIdx)) {
+    document.getElementById('hint').textContent = 'Linked shared vertices cannot be deleted.';
+    return;
+  }
   const mergedCurve = !!p.segmentCurves[prevIdx] || !!p.segmentCurves[vertIdx];
   p.points.splice(vertIdx, 1);
+  p.pointIds.splice(vertIdx, 1);
   p.segmentCurves.splice(vertIdx, 1);
+  p.segmentLinkIds.splice(vertIdx, 1);
+  p.segmentBezier.splice(vertIdx, 1);
+  p.segmentBezier[prevIdx] = null;
   p.segmentCurves[prevIdx] = mergedCurve;
   select(polyId);
   refreshList();
@@ -1127,7 +1390,7 @@ function deleteVertex(polyId, vertIdx) {
 function clearAll() {
   if (!polys.length) return;
   if (!confirm('Clear all polygons?')) return;
-  polys=[]; drawing=false; wip=[];
+  polys=[]; drawing=false; wip=[]; wipMeta=null; adjacentSelection={ polyId:null, edges:[] };
   select(null); refreshList(); broadcast();
 }
 
@@ -1202,7 +1465,10 @@ function sceneData() {
       opacity: p.opacity,
       speed: p.speed,
       blend: p.blend,
-      segmentCurves: [...normalizeSegmentCurves(p)],
+      pointIds: [...normalizePolyGeometry(p).pointIds],
+      segmentCurves: [...p.segmentCurves],
+      segmentLinkIds: [...p.segmentLinkIds],
+      segmentBezier: p.segmentBezier.map(b => b ? { cp1:[...b.cp1], cp2:[...b.cp2] } : null),
       colorA: p.colorA,
       colorB: p.colorB,
       colorBg: p.colorBg,
@@ -1262,8 +1528,10 @@ function applySceneData(data) {
   videos = {};
   drawing = false;
   wip = [];
+  wipMeta = null;
   dragging = null;
   hoverEdit = null;
+  adjacentSelection = { polyId:null, edges:[] };
   colorN = polys.length;
   select(polys[0]?.id || null);
   refreshList();
@@ -1281,6 +1549,15 @@ function normalizeScenePolygon(p, i) {
   const segmentCurves = Array.isArray(p.segmentCurves)
     ? points.map((_, idx) => !!p.segmentCurves[idx])
     : points.map(() => !!p.curved);
+  const pointIds = Array.isArray(p.pointIds)
+    ? points.map((_, idx) => typeof p.pointIds[idx] === 'string' ? p.pointIds[idx] : uid('pt'))
+    : points.map(() => uid('pt'));
+  const segmentLinkIds = Array.isArray(p.segmentLinkIds)
+    ? points.map((_, idx) => typeof p.segmentLinkIds[idx] === 'string' ? p.segmentLinkIds[idx] : null)
+    : points.map(() => null);
+  const segmentBezier = Array.isArray(p.segmentBezier)
+    ? points.map((_, idx) => sanitizeBezier(p.segmentBezier[idx]))
+    : points.map(() => null);
 
   return {
     id: Number.isFinite(Number(p.id)) ? Number(p.id) : Date.now() + i,
@@ -1289,7 +1566,10 @@ function normalizeScenePolygon(p, i) {
     opacity: clampNumber(p.opacity, 0, 1, 1),
     speed: clampNumber(p.speed, 0.1, 3, 1),
     blend: typeof p.blend === 'string' ? p.blend : 'source-over',
+    pointIds,
     segmentCurves,
+    segmentLinkIds,
+    segmentBezier,
     colorA: normalizeHex(p.colorA || DEFAULT_TEXTURE_COLORS.colorA),
     colorB: normalizeHex(p.colorB || DEFAULT_TEXTURE_COLORS.colorB),
     colorBg: normalizeHex(p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg),
@@ -1337,7 +1617,11 @@ function setOutputLive(v) {
 function broadcast() {
   const data = polys.map(p=>({
     id:p.id, points:p.points, texture:p.texture,
-    opacity:p.opacity, speed:p.speed, blend:p.blend, segmentCurves:normalizeSegmentCurves(p),
+    opacity:p.opacity, speed:p.speed, blend:p.blend,
+    pointIds:[...normalizePolyGeometry(p).pointIds],
+    segmentCurves:[...p.segmentCurves],
+    segmentLinkIds:[...p.segmentLinkIds],
+    segmentBezier:p.segmentBezier.map(b => b ? { cp1:[...b.cp1], cp2:[...b.cp2] } : null),
     colorA:p.colorA, colorB:p.colorB, colorBg:p.colorBg,
     scrollText:p.scrollText,
     rotation:p.rotation, tiltX:p.tiltX, tiltY:p.tiltY, scale:p.scale,
@@ -2412,13 +2696,26 @@ function curveControls(pts, i) {
   };
 }
 
-function tracePolyPath(ctx2, pts, segmentCurves=[]) {
+function curveSegmentFromArrays(pts, i, segmentBezier=[]) {
+  const explicit = sanitizeBezier(segmentBezier?.[i]);
+  if (explicit) {
+    return {
+      p1: pts[i],
+      p2: pts[(i + 1) % pts.length],
+      cp1: explicit.cp1,
+      cp2: explicit.cp2,
+    };
+  }
+  return curveControls(pts, i);
+}
+
+function tracePolyPath(ctx2, pts, segmentCurves=[], segmentBezier=[]) {
   if (!pts.length) return;
   ctx2.moveTo(pts[0][0], pts[0][1]);
   const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
   for (let i=0;i<pts.length;i++) {
     if (curves[i] && pts.length >= 3) {
-      const seg = curveControls(pts, i);
+      const seg = curveSegmentFromArrays(pts, i, segmentBezier);
       ctx2.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
     } else {
       const next = pts[(i + 1) % pts.length];
@@ -2428,7 +2725,7 @@ function tracePolyPath(ctx2, pts, segmentCurves=[]) {
   ctx2.closePath();
 }
 
-function samplePathSegments(pts, segmentCurves=[], steps=12) {
+function samplePathSegments(pts, segmentCurves=[], steps=12, segmentBezier=[]) {
   if (pts.length < 2) return [];
   const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
   const out = [];
@@ -2436,7 +2733,7 @@ function samplePathSegments(pts, segmentCurves=[], steps=12) {
     const a = pts[i];
     const b = pts[(i + 1) % pts.length];
     if (curves[i] && pts.length >= 3) {
-      const seg = curveControls(pts, i);
+      const seg = curveSegmentFromArrays(pts, i, segmentBezier);
       let prev = seg.p1;
       for (let s=1;s<=steps;s++) {
         const t = s / steps;
@@ -2454,8 +2751,8 @@ function samplePathSegments(pts, segmentCurves=[], steps=12) {
   return out;
 }
 
-function samplePolyPoints(pts, segmentCurves=[], steps=12) {
-  const segs = samplePathSegments(pts, segmentCurves, steps);
+function samplePolyPoints(pts, segmentCurves=[], steps=12, segmentBezier=[]) {
+  const segs = samplePathSegments(pts, segmentCurves, steps, segmentBezier);
   return segs.length ? segs.map(seg => seg.a) : pts;
 }
 
@@ -2471,7 +2768,8 @@ function pointToSegment(px, py, ax, ay, bx, by) {
 function getEditTarget(polyId, x, y) {
   const p = polys.find(poly=>poly.id===polyId);
   if (!p) return null;
-  const curves = normalizeSegmentCurves(p);
+  normalizePolyGeometry(p);
+  const curves = p.segmentCurves;
 
   for (let i=0;i<p.points.length;i++) {
     const [vx, vy] = p.points[i];
@@ -2479,7 +2777,7 @@ function getEditTarget(polyId, x, y) {
   }
 
   let best = null;
-  const edgeSegments = samplePathSegments(p.points, curves, 10);
+  const edgeSegments = samplePathSegments(p.points, curves, 10, p.segmentBezier);
   for (const seg of edgeSegments) {
     const hit = pointToSegment(x, y, seg.a[0], seg.a[1], seg.b[0], seg.b[1]);
     if (hit.dist > 10) continue;
@@ -2488,8 +2786,8 @@ function getEditTarget(polyId, x, y) {
   return best;
 }
 
-function ptInPoly(px,py,pts,segmentCurves=[]) {
-  pts = samplePolyPoints(pts, segmentCurves);
+function ptInPoly(px,py,pts,segmentCurves=[],segmentBezier=[]) {
+  pts = samplePolyPoints(pts, segmentCurves, 12, segmentBezier);
   let inside=false;
   for(let i=0,j=pts.length-1;i<pts.length;j=i++){
     const [xi,yi]=pts[i],[xj,yj]=pts[j];
@@ -2498,8 +2796,8 @@ function ptInPoly(px,py,pts,segmentCurves=[]) {
   return inside;
 }
 
-function bbox(pts, segmentCurves=[]) {
-  pts = samplePolyPoints(pts, segmentCurves);
+function bbox(pts, segmentCurves=[], segmentBezier=[]) {
+  pts = samplePolyPoints(pts, segmentCurves, 12, segmentBezier);
   const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
   const x=Math.min(...xs), y=Math.min(...ys);
   return { x, y, w:Math.max(1,Math.max(...xs)-x), h:Math.max(1,Math.max(...ys)-y) };
@@ -2550,13 +2848,14 @@ function render(ts) {
 
     polys.forEach(p => {
       if (!p.visible || p.points.length<3) return;
-      const curves = normalizeSegmentCurves(p);
-      const bb = bbox(p.points, curves);
+      normalizePolyGeometry(p);
+      const curves = p.segmentCurves;
+      const bb = bbox(p.points, curves, p.segmentBezier);
 
       octx.clearRect(0,0,cw,ch);
       octx.save();
       octx.beginPath();
-      tracePolyPath(octx, p.points, curves);
+      tracePolyPath(octx, p.points, curves, p.segmentBezier);
       octx.clip();
       drawMappedTexture(octx, p, bb, t);
       octx.restore();
@@ -2569,7 +2868,7 @@ function render(ts) {
 
       ctx.save();
       ctx.beginPath();
-      tracePolyPath(ctx, p.points, curves);
+      tracePolyPath(ctx, p.points, curves, p.segmentBezier);
       const isSel = p.id===selId;
       ctx.strokeStyle = isSel ? '#00e5ff' : p.color+'80';
       ctx.lineWidth = isSel ? 1.5 : 0.8;
@@ -2577,9 +2876,26 @@ function render(ts) {
       ctx.restore();
 
       if (isSel && tool==='select') {
+        if (adjacentSelection.polyId === p.id) {
+          adjacentSelection.edges.forEach(edgeIdx => {
+            const seg = p.segmentCurves[edgeIdx]
+              ? curveSegmentFromArrays(p.points, edgeIdx, p.segmentBezier)
+              : { p1:p.points[edgeIdx], p2:p.points[(edgeIdx + 1) % p.points.length] };
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(seg.p1[0], seg.p1[1]);
+            if (p.segmentCurves[edgeIdx]) ctx.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
+            else ctx.lineTo(seg.p2[0], seg.p2[1]);
+            ctx.strokeStyle = 'rgba(0, 229, 160, 0.95)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.restore();
+          });
+        }
+
         curves.forEach((isCurved, edgeIdx) => {
           if (!isCurved) return;
-          const seg = curveControls(p.points, edgeIdx);
+          const seg = curveSegmentFromArrays(p.points, edgeIdx, p.segmentBezier);
           ctx.save();
           ctx.beginPath();
           ctx.moveTo(seg.p1[0], seg.p1[1]);

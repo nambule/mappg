@@ -80,7 +80,9 @@ setInterval(() => {
     if (state?.polys) {
       polys = state.polys.map(p => ({
         id: p.id, points: p.points, texture: p.texture,
-        opacity: p.opacity, speed: p.speed, blend: p.blend, segmentCurves: p.segmentCurves,
+        opacity: p.opacity, speed: p.speed, blend: p.blend,
+        pointIds: p.pointIds, segmentCurves: p.segmentCurves,
+        segmentLinkIds: p.segmentLinkIds, segmentBezier: p.segmentBezier,
         colorA: p.colorA, colorB: p.colorB, colorBg: p.colorBg,
         scrollText: p.scrollText,
         rotation: p.rotation, tiltX: p.tiltX, tiltY: p.tiltY, scale: p.scale,
@@ -1088,13 +1090,44 @@ function normalizeSegmentCurves(p) {
   return p.segmentCurves;
 }
 
-function tracePolyPath(c2, pts, segmentCurves=[]) {
+function sanitizeBezier(b) {
+  if (!b || !Array.isArray(b.cp1) || !Array.isArray(b.cp2)) return null;
+  const cp1 = [Number(b.cp1[0]), Number(b.cp1[1])];
+  const cp2 = [Number(b.cp2[0]), Number(b.cp2[1])];
+  return cp1.every(Number.isFinite) && cp2.every(Number.isFinite) ? { cp1, cp2 } : null;
+}
+
+function normalizePolyGeometry(p) {
+  if (!p) return p;
+  normalizeSegmentCurves(p);
+  if (!Array.isArray(p.segmentBezier) || p.segmentBezier.length !== p.points.length) {
+    p.segmentBezier = p.points.map((_, i) => sanitizeBezier(p.segmentBezier?.[i]));
+  } else {
+    p.segmentBezier = p.segmentBezier.map(sanitizeBezier);
+  }
+  return p;
+}
+
+function curveSegmentFromArrays(pts, i, segmentBezier=[]) {
+  const explicit = sanitizeBezier(segmentBezier?.[i]);
+  if (explicit) {
+    return {
+      p1: pts[i],
+      p2: pts[(i + 1) % pts.length],
+      cp1: explicit.cp1,
+      cp2: explicit.cp2,
+    };
+  }
+  return curveControls(pts, i);
+}
+
+function tracePolyPath(c2, pts, segmentCurves=[], segmentBezier=[]) {
   if (!pts.length) return;
   c2.moveTo(pts[0][0], pts[0][1]);
   const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
   for (let i=0;i<pts.length;i++) {
     if (curves[i] && pts.length >= 3) {
-      const seg = curveControls(pts, i);
+      const seg = curveSegmentFromArrays(pts, i, segmentBezier);
       c2.bezierCurveTo(seg.cp1[0], seg.cp1[1], seg.cp2[0], seg.cp2[1], seg.p2[0], seg.p2[1]);
     } else {
       const next = pts[(i + 1) % pts.length];
@@ -1104,7 +1137,7 @@ function tracePolyPath(c2, pts, segmentCurves=[]) {
   c2.closePath();
 }
 
-function samplePathSegments(pts, segmentCurves=[], steps=12) {
+function samplePathSegments(pts, segmentCurves=[], steps=12, segmentBezier=[]) {
   if (pts.length < 2) return [];
   const curves = Array.isArray(segmentCurves) ? segmentCurves : [];
   const out = [];
@@ -1112,7 +1145,7 @@ function samplePathSegments(pts, segmentCurves=[], steps=12) {
     const a = pts[i];
     const b = pts[(i + 1) % pts.length];
     if (curves[i] && pts.length >= 3) {
-      const seg = curveControls(pts, i);
+      const seg = curveSegmentFromArrays(pts, i, segmentBezier);
       let prev = seg.p1;
       for (let s=1;s<=steps;s++) {
         const t = s / steps;
@@ -1130,13 +1163,13 @@ function samplePathSegments(pts, segmentCurves=[], steps=12) {
   return out;
 }
 
-function samplePolyPoints(pts, segmentCurves=[], steps=12) {
-  const segs = samplePathSegments(pts, segmentCurves, steps);
+function samplePolyPoints(pts, segmentCurves=[], steps=12, segmentBezier=[]) {
+  const segs = samplePathSegments(pts, segmentCurves, steps, segmentBezier);
   return segs.length ? segs.map(seg => seg.a) : pts;
 }
 
-function bbox(pts, segmentCurves=[]){
-  pts = samplePolyPoints(pts, segmentCurves);
+function bbox(pts, segmentCurves=[], segmentBezier=[]){
+  pts = samplePolyPoints(pts, segmentCurves, 12, segmentBezier);
   const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
   const x=Math.min(...xs),y=Math.min(...ys);
   return{x,y,w:Math.max(1,Math.max(...xs)-x),h:Math.max(1,Math.max(...ys)-y)};
@@ -1156,13 +1189,14 @@ function render(ts){
 
   polys.forEach(p=>{
     if(!p.visible||p.points.length<3) return;
-    const curves = normalizeSegmentCurves(p);
-    const bb=bbox(p.points, curves);
+    normalizePolyGeometry(p);
+    const curves = p.segmentCurves;
+    const bb=bbox(p.points, curves, p.segmentBezier);
 
     octx.clearRect(0,0,cw,ch);
     octx.save();
     octx.beginPath();
-    tracePolyPath(octx, p.points, curves);
+    tracePolyPath(octx, p.points, curves, p.segmentBezier);
     octx.clip();
     drawMappedTexture(octx,p,bb,t);
     octx.restore();
