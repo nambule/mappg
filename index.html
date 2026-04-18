@@ -263,6 +263,14 @@ select {
 }
 select:focus { border-color:var(--accent); }
 
+.text-input {
+  flex:1; min-width:0;
+  background:var(--bg); border:1px solid var(--border);
+  color:var(--text); font-family:inherit; font-size:10px;
+  padding:5px 6px; border-radius:3px; outline:none;
+}
+.text-input:focus { border-color:var(--accent); }
+
 input[type=color] {
   flex:1;
   height:24px;
@@ -530,6 +538,12 @@ input[type=checkbox] {
             <button class="vbtn" onclick="document.getElementById('vfile').click()">+ Load Video File</button>
             <div id="vstatus" style="font-size:9px;color:var(--text-dim);margin-top:5px;text-align:center;letter-spacing:1px"></div>
           </div>
+          <div id="textsec" style="display:none">
+            <div class="pr">
+              <span class="pl">Text</span>
+              <input class="text-input" id="txt-scroll" type="text" value="MAPPG" oninput="setProp('scrollText', this.value)">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -676,6 +690,8 @@ const TEXTURES = [
   { id:'stars',   name:'Stars'    },
   { id:'sweep',   name:'Sweep'    },
   { id:'plasma',  name:'Plasma'   },
+  { id:'squares', name:'Squares'  },
+  { id:'textscroll', name:'Text'   },
   { id:'radar',   name:'Radar'    },
   { id:'stripes', name:'Stripes'  },
   { id:'marble',  name:'Marble'   },
@@ -874,6 +890,7 @@ function closePoly() {
     colorA: DEFAULT_TEXTURE_COLORS.colorA,
     colorB: DEFAULT_TEXTURE_COLORS.colorB,
     colorBg: DEFAULT_TEXTURE_COLORS.colorBg,
+    scrollText: 'MAPPG',
     rotation: 0,
     tiltX: 0,
     tiltY: 0,
@@ -934,6 +951,8 @@ function syncPropsUI(p) {
   document.getElementById('sl-py').value = Math.round((p.offsetY||0)*100);
   document.getElementById('vpy').textContent = `${Math.round((p.offsetY||0)*100)}%`;
   document.getElementById('vsec').style.display = p.texture==='video' ? 'block':'none';
+  document.getElementById('textsec').style.display = p.texture==='textscroll' ? 'block':'none';
+  document.getElementById('txt-scroll').value = p.scrollText || 'MAPPG';
   syncEdgeCurveUI();
 }
 
@@ -947,6 +966,7 @@ function setProp(key, val) {
   if (key==='texture') {
     document.querySelectorAll('.tc').forEach(c=>c.classList.toggle('on', c.dataset.id===val));
     document.getElementById('vsec').style.display = val==='video'?'block':'none';
+    document.getElementById('textsec').style.display = val==='textscroll'?'block':'none';
   }
   broadcast();
 }
@@ -1186,6 +1206,7 @@ function sceneData() {
       colorA: p.colorA,
       colorB: p.colorB,
       colorBg: p.colorBg,
+      scrollText: p.scrollText,
       rotation: p.rotation,
       tiltX: p.tiltX,
       tiltY: p.tiltY,
@@ -1272,6 +1293,7 @@ function normalizeScenePolygon(p, i) {
     colorA: normalizeHex(p.colorA || DEFAULT_TEXTURE_COLORS.colorA),
     colorB: normalizeHex(p.colorB || DEFAULT_TEXTURE_COLORS.colorB),
     colorBg: normalizeHex(p.colorBg || DEFAULT_TEXTURE_COLORS.colorBg),
+    scrollText: typeof p.scrollText === 'string' ? p.scrollText.slice(0, 160) : 'MAPPG',
     rotation: clampNumber(p.rotation, -180, 180, 0),
     tiltX: clampNumber(p.tiltX, -80, 80, 0),
     tiltY: clampNumber(p.tiltY, -80, 80, 0),
@@ -1317,6 +1339,7 @@ function broadcast() {
     id:p.id, points:p.points, texture:p.texture,
     opacity:p.opacity, speed:p.speed, blend:p.blend, segmentCurves:normalizeSegmentCurves(p),
     colorA:p.colorA, colorB:p.colorB, colorBg:p.colorBg,
+    scrollText:p.scrollText,
     rotation:p.rotation, tiltX:p.tiltX, tiltY:p.tiltY, scale:p.scale,
     offsetX:p.offsetX, offsetY:p.offsetY,
     visible:p.visible, color:p.color,
@@ -1379,6 +1402,8 @@ function drawTex(ctx2, id, w, h, t, polyId, poly) {
     case 'stars':   texStars(ctx2,w,h,t,pal); break;
     case 'sweep':   texSweep(ctx2,w,h,t,pal); break;
     case 'plasma':  texPlasma(ctx2,w,h,t,pal); break;
+    case 'squares': texSquares(ctx2,w,h,t,pal); break;
+    case 'textscroll': texTextScroll(ctx2,w,h,t,pal,poly); break;
     case 'radar':   texRadar(ctx2,w,h,t,pal); break;
     case 'stripes': texStripes(ctx2,w,h,t,pal); break;
     case 'marble':  texMarble(ctx2,w,h,t,pal); break;
@@ -2016,6 +2041,94 @@ function texPlasma(ctx2, w, h, t, pal) {
     }
   }, w, h, 3);
   ctx2.drawImage(tmp, 0, 0, w, h);
+}
+
+function texSquares(ctx2, w, h, t, pal) {
+  ctx2.fillStyle=pal.bg;
+  ctx2.fillRect(0,0,w,h);
+
+  ctx2.save();
+  ctx2.globalCompositeOperation='screen';
+  const maxSide=Math.hypot(w,h)*1.15;
+  const count=4;
+  for (let i=0;i<count;i++) {
+    const seed=i*37.19;
+    const cycle=4.8+rand01(seed)*2.8;
+    const phase=(t/cycle+rand01(seed+1))%1;
+    const grow=phase*phase*(3-2*phase);
+    const fade=Math.sin(phase*Math.PI);
+    const cx=w*(.12+rand01(seed+2)*.76);
+    const cy=h*(.12+rand01(seed+3)*.76);
+    const rot=(rand01(seed+4)-.5)*Math.PI*.45+t*(rand01(seed+5)-.5)*.12;
+    const base=Math.min(w,h)*(.045+rand01(seed+6)*.05);
+    const side=base+maxSide*grow*(.42+rand01(seed+7)*.5);
+    const levels=3+Math.floor(rand01(seed+8)*3);
+    const main=mixColor(pal.a,pal.b,rand01(seed+9));
+
+    ctx2.save();
+    ctx2.translate(cx,cy);
+    ctx2.rotate(rot);
+    ctx2.shadowColor=main;
+    ctx2.shadowBlur=18*fade;
+    for (let j=0;j<levels;j++) {
+      const p=j/(levels-1||1);
+      const s=side*(1-p*.72);
+      const inset=side*.018*Math.sin(t*2.1+j+seed);
+      ctx2.lineWidth=Math.max(3.5, Math.min(w,h)*(.011+.006*(1-p)))*fade;
+      ctx2.strokeStyle=alpha(j%2===0?main:mixColor(main,'#ffffff',.55), (.98-p*.28)*fade);
+      ctx2.strokeRect(-s/2+inset, -s/2-inset, s, s);
+
+      if (j < levels-1) {
+        const notch=s*.16;
+        ctx2.lineWidth=Math.max(2.4, ctx2.lineWidth*.55);
+        ctx2.strokeStyle=alpha(mixColor(pal.bg, pal.b, .85), (.48+p*.22)*fade);
+        ctx2.beginPath();
+        ctx2.moveTo(-s/2, -s/2+notch);
+        ctx2.lineTo(-s/2+notch, -s/2);
+        ctx2.moveTo(s/2, s/2-notch);
+        ctx2.lineTo(s/2-notch, s/2);
+        ctx2.stroke();
+      }
+    }
+    ctx2.restore();
+  }
+  ctx2.restore();
+}
+
+function texTextScroll(ctx2, w, h, t, pal, poly) {
+  ctx2.fillStyle=pal.bg;
+  ctx2.fillRect(0,0,w,h);
+
+  const text = String(poly?.scrollText || 'MAPPG').trim() || 'MAPPG';
+  const fontSize = Math.max(18, Math.min(96, Math.min(h * 0.42, w * 0.18)));
+  ctx2.font = `700 ${fontSize}px "IBM Plex Mono", monospace`;
+  ctx2.textBaseline = 'middle';
+  ctx2.textAlign = 'left';
+
+  const textW = Math.max(1, ctx2.measureText(text).width);
+  const gap = Math.max(fontSize * 1.6, w * 0.18);
+  const step = textW + gap;
+  const offset = (t * Math.max(55, fontSize * 2.2)) % step;
+  const y = h * 0.5;
+
+  ctx2.save();
+  ctx2.shadowColor = pal.a;
+  ctx2.shadowBlur = Math.max(8, fontSize * 0.22);
+  ctx2.lineJoin = 'round';
+  ctx2.lineWidth = Math.max(4, fontSize * 0.13);
+  ctx2.strokeStyle = alpha(pal.bg, 0.92);
+  ctx2.fillStyle = pal.a;
+
+  for (let x = w - offset; x > -step; x -= step) {
+    ctx2.strokeText(text, x, y);
+    ctx2.fillText(text, x, y);
+    ctx2.lineWidth = Math.max(1.5, fontSize * 0.035);
+    ctx2.strokeStyle = alpha(mixColor(pal.a, pal.b, 0.65), 0.92);
+    ctx2.strokeText(text, x, y);
+    ctx2.lineWidth = Math.max(4, fontSize * 0.13);
+    ctx2.strokeStyle = alpha(pal.bg, 0.92);
+  }
+  ctx2.restore();
 }
 
 function texRadar(ctx2, w, h, t, pal) {

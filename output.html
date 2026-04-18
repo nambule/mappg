@@ -82,6 +82,7 @@ setInterval(() => {
         id: p.id, points: p.points, texture: p.texture,
         opacity: p.opacity, speed: p.speed, blend: p.blend, segmentCurves: p.segmentCurves,
         colorA: p.colorA, colorB: p.colorB, colorBg: p.colorBg,
+        scrollText: p.scrollText,
         rotation: p.rotation, tiltX: p.tiltX, tiltY: p.tiltY, scale: p.scale,
         offsetX: p.offsetX, offsetY: p.offsetY,
         visible: p.visible, color: p.color,
@@ -177,6 +178,8 @@ function drawTex(c2, id, w, h, t, polyId, poly) {
     case 'stars':   texStars(c2,w,h,t,pal);   break;
     case 'sweep':   texSweep(c2,w,h,t,pal);   break;
     case 'plasma':  texPlasma(c2,w,h,t,pal);  break;
+    case 'squares': texSquares(c2,w,h,t,pal); break;
+    case 'textscroll': texTextScroll(c2,w,h,t,pal,poly); break;
     case 'radar':   texRadar(c2,w,h,t,pal);   break;
     case 'stripes': texStripes(c2,w,h,t,pal); break;
     case 'marble':  texMarble(c2,w,h,t,pal);  break;
@@ -703,6 +706,94 @@ function texPlasma(c2,w,h,t,pal){
     }
   },w,h,3);
   c2.drawImage(tmp,0,0,w,h);
+}
+
+function texSquares(c2,w,h,t,pal){
+  c2.fillStyle=pal.bg;
+  c2.fillRect(0,0,w,h);
+
+  c2.save();
+  c2.globalCompositeOperation='screen';
+  const maxSide=Math.hypot(w,h)*1.15;
+  const count=4;
+  for(let i=0;i<count;i++){
+    const seed=i*37.19;
+    const cycle=4.8+rand01(seed)*2.8;
+    const phase=(t/cycle+rand01(seed+1))%1;
+    const grow=phase*phase*(3-2*phase);
+    const fade=Math.sin(phase*Math.PI);
+    const cx=w*(.12+rand01(seed+2)*.76);
+    const cy=h*(.12+rand01(seed+3)*.76);
+    const rot=(rand01(seed+4)-.5)*Math.PI*.45+t*(rand01(seed+5)-.5)*.12;
+    const base=Math.min(w,h)*(.045+rand01(seed+6)*.05);
+    const side=base+maxSide*grow*(.42+rand01(seed+7)*.5);
+    const levels=3+Math.floor(rand01(seed+8)*3);
+    const main=mixColor(pal.a,pal.b,rand01(seed+9));
+
+    c2.save();
+    c2.translate(cx,cy);
+    c2.rotate(rot);
+    c2.shadowColor=main;
+    c2.shadowBlur=18*fade;
+    for(let j=0;j<levels;j++){
+      const p=j/(levels-1||1);
+      const s=side*(1-p*.72);
+      const inset=side*.018*Math.sin(t*2.1+j+seed);
+      c2.lineWidth=Math.max(3.5,Math.min(w,h)*(.011+.006*(1-p)))*fade;
+      c2.strokeStyle=alpha(j%2===0?main:mixColor(main,'#ffffff',.55),(.98-p*.28)*fade);
+      c2.strokeRect(-s/2+inset,-s/2-inset,s,s);
+
+      if(j<levels-1){
+        const notch=s*.16;
+        c2.lineWidth=Math.max(2.4,c2.lineWidth*.55);
+        c2.strokeStyle=alpha(mixColor(pal.bg,pal.b,.85),(.48+p*.22)*fade);
+        c2.beginPath();
+        c2.moveTo(-s/2,-s/2+notch);
+        c2.lineTo(-s/2+notch,-s/2);
+        c2.moveTo(s/2,s/2-notch);
+        c2.lineTo(s/2-notch,s/2);
+        c2.stroke();
+      }
+    }
+    c2.restore();
+  }
+  c2.restore();
+}
+
+function texTextScroll(c2,w,h,t,pal,poly){
+  c2.fillStyle=pal.bg;
+  c2.fillRect(0,0,w,h);
+
+  const text=String(poly?.scrollText||'MAPPG').trim()||'MAPPG';
+  const fontSize=Math.max(18,Math.min(96,Math.min(h*.42,w*.18)));
+  c2.font=`700 ${fontSize}px "IBM Plex Mono", monospace`;
+  c2.textBaseline='middle';
+  c2.textAlign='left';
+
+  const textW=Math.max(1,c2.measureText(text).width);
+  const gap=Math.max(fontSize*1.6,w*.18);
+  const step=textW+gap;
+  const offset=(t*Math.max(55,fontSize*2.2))%step;
+  const y=h*.5;
+
+  c2.save();
+  c2.shadowColor=pal.a;
+  c2.shadowBlur=Math.max(8,fontSize*.22);
+  c2.lineJoin='round';
+  c2.lineWidth=Math.max(4,fontSize*.13);
+  c2.strokeStyle=alpha(pal.bg,.92);
+  c2.fillStyle=pal.a;
+
+  for(let x=w-offset;x>-step;x-=step){
+    c2.strokeText(text,x,y);
+    c2.fillText(text,x,y);
+    c2.lineWidth=Math.max(1.5,fontSize*.035);
+    c2.strokeStyle=alpha(mixColor(pal.a,pal.b,.65),.92);
+    c2.strokeText(text,x,y);
+    c2.lineWidth=Math.max(4,fontSize*.13);
+    c2.strokeStyle=alpha(pal.bg,.92);
+  }
+  c2.restore();
 }
 
 function texRadar(c2,w,h,t,pal){
