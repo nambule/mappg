@@ -80,7 +80,7 @@ setInterval(() => {
     if (state?.polys) {
       polys = state.polys.map(p => ({
         id: p.id, points: p.points, texture: p.texture,
-        opacity: p.opacity, speed: p.speed, blend: p.blend,
+        opacity: p.opacity, speed: p.speed, density: p.density, blend: p.blend,
         pointIds: p.pointIds, segmentCurves: p.segmentCurves,
         segmentLinkIds: p.segmentLinkIds, segmentBezier: p.segmentBezier,
         colorA: p.colorA, colorB: p.colorB, colorBg: p.colorBg,
@@ -105,6 +105,11 @@ function texturePalette(p) {
     b: p?.colorB || DEFAULT_TEXTURE_COLORS.colorB,
     bg: p?.colorBg || DEFAULT_TEXTURE_COLORS.colorBg,
   };
+}
+
+function textureDensity(p) {
+  const n = Number(p?.density ?? 1);
+  return Number.isFinite(n) ? Math.max(0.25, Math.min(3, n)) : 1;
 }
 
 function hexToRgb(hex) {
@@ -163,33 +168,34 @@ function drawShard(c2, x, y, size, kind, color, rotation=0) {
 function drawTex(c2, id, w, h, t, polyId, poly) {
   if (w<=0||h<=0) return;
   const pal = texturePalette(poly);
+  const den = textureDensity(poly);
   switch(id) {
     case 'lava':    texLava(c2,w,h,t,pal);    break;
     case 'ocean':   texOcean(c2,w,h,t,pal);   break;
-    case 'waves':   texSeaWaves(c2,w,h,t,pal); break;
-    case 'eyes':    texEyes(c2,w,h,t,pal);    break;
-    case 'fireworks': texFireworks(c2,w,h,t,pal); break;
+    case 'waves':   texSeaWaves(c2,w,h,t,pal,den); break;
+    case 'eyes':    texEyes(c2,w,h,t,pal,den);    break;
+    case 'fireworks': texFireworks(c2,w,h,t,pal,den); break;
     case 'neon':    texNeon(c2,w,h,t,pal);    break;
-    case 'wire':    texWire(c2,w,h,t,pal);    break;
-    case 'matrix':  texMatrix(c2,w,h,t,pal);  break;
-    case 'checker': texChecker(c2,w,h,t,pal); break;
+    case 'wire':    texWire(c2,w,h,t,pal,den);    break;
+    case 'matrix':  texMatrix(c2,w,h,t,pal,den);  break;
+    case 'checker': texChecker(c2,w,h,t,pal,den); break;
     case 'fire':    texFire(c2,w,h,t,pal);    break;
-    case 'firecamp': texFirecamp(c2,w,h,t,pal); break;
+    case 'firecamp': texFirecamp(c2,w,h,t,pal,den); break;
     case 'noise':   texNoise(c2,w,h,t,pal);   break;
     case 'rainbow': texRainbow(c2,w,h,t,pal); break;
-    case 'stars':   texStars(c2,w,h,t,pal);   break;
+    case 'stars':   texStars(c2,w,h,t,pal,den);   break;
     case 'sweep':   texSweep(c2,w,h,t,pal);   break;
     case 'plasma':  texPlasma(c2,w,h,t,pal);  break;
-    case 'squares': texSquares(c2,w,h,t,pal); break;
+    case 'squares': texSquares(c2,w,h,t,pal,den); break;
     case 'textscroll': texTextScroll(c2,w,h,t,pal,poly); break;
-    case 'radar':   texRadar(c2,w,h,t,pal);   break;
-    case 'stripes': texStripes(c2,w,h,t,pal); break;
+    case 'radar':   texRadar(c2,w,h,t,pal,den);   break;
+    case 'stripes': texStripes(c2,w,h,t,pal,den); break;
     case 'marble':  texMarble(c2,w,h,t,pal);  break;
-    case 'rings':   texRings(c2,w,h,t,pal);   break;
-    case 'halftone': texHalftone(c2,w,h,t,pal); break;
-    case 'chevrons': texChevrons(c2,w,h,t,pal); break;
-    case 'beams':   texBeams(c2,w,h,t,pal);   break;
-    case 'cascade': texCascade(c2,w,h,t,pal,polyId); break;
+    case 'rings':   texRings(c2,w,h,t,pal,den);   break;
+    case 'halftone': texHalftone(c2,w,h,t,pal,den); break;
+    case 'chevrons': texChevrons(c2,w,h,t,pal,den); break;
+    case 'beams':   texBeams(c2,w,h,t,pal,den);   break;
+    case 'cascade': texCascade(c2,w,h,t,pal,polyId,den); break;
     case 'video':   texVideo(c2,w,h,polyId); break;
   }
 }
@@ -233,7 +239,7 @@ function texOcean(c2,w,h,t,pal){
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texSeaWaves(c2,w,h,t,pal){
+function texSeaWaves(c2,w,h,t,pal,den=1){
   const bg=c2.createLinearGradient(0,0,0,h);
   bg.addColorStop(0,mixColor(pal.bg,pal.a,.22));
   bg.addColorStop(.55,mixColor(pal.bg,pal.b,.32));
@@ -243,7 +249,7 @@ function texSeaWaves(c2,w,h,t,pal){
 
   c2.save();
   c2.globalCompositeOperation='screen';
-  const bands=Math.max(3,Math.min(5,Math.floor(h/95)));
+  const bands=Math.max(1,Math.min(12,Math.round(Math.max(3,Math.min(5,Math.floor(h/95)))*den)));
   for(let i=0;i<bands;i++){
     const seed=i*18.41;
     const yBase=h*(.22+i*.18+rand01(seed)*.045);
@@ -279,7 +285,7 @@ function texSeaWaves(c2,w,h,t,pal){
     }
     c2.stroke();
 
-    const crests=Math.max(2,Math.floor(w/180));
+    const crests=Math.max(1,Math.round(Math.max(2,Math.floor(w/180))*den));
     for(let c=0;c<crests;c++){
       const x=((c+rand01(seed+c+5))/crests*w+t*(18+i*5))%(w+len*.2)-len*.1;
       const y=yBase+Math.sin(x/len*Math.PI*2+phase)*amp-amp*.15;
@@ -294,7 +300,7 @@ function texSeaWaves(c2,w,h,t,pal){
   c2.restore();
 }
 
-function texEyes(c2,w,h,t,pal){
+function texEyes(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
 
@@ -304,7 +310,7 @@ function texEyes(c2,w,h,t,pal){
   c2.fillStyle=glow;
   c2.fillRect(0,0,w,h);
 
-  const count=Math.max(3,Math.min(7,Math.floor((w*h)/34000)));
+  const count=Math.max(1,Math.min(18,Math.round(Math.max(3,Math.min(7,Math.floor((w*h)/34000)))*den)));
   for(let i=0;i<count;i++){
     const seed=i*53.83;
     const cycle=1.6+rand01(seed+5)*3.2;
@@ -377,7 +383,7 @@ function drawEye(c2,cx,cy,ew,eh,open,lookX,lookY,seed,pal){
   c2.restore();
 }
 
-function texFireworks(c2,w,h,t,pal){
+function texFireworks(c2,w,h,t,pal,den=1){
   const sky=c2.createLinearGradient(0,0,0,h);
   sky.addColorStop(0,mixColor(pal.bg,'#000000',.62));
   sky.addColorStop(.58,pal.bg);
@@ -387,7 +393,7 @@ function texFireworks(c2,w,h,t,pal){
 
   c2.save();
   c2.globalCompositeOperation='lighter';
-  const rockets=Math.max(3,Math.min(5,Math.floor(w/190)));
+  const rockets=Math.max(1,Math.min(14,Math.round(Math.max(3,Math.min(5,Math.floor(w/190)))*den)));
   for(let i=0;i<rockets;i++){
     const seed=i*31.71;
     const cycle=2.35+rand01(seed)*1.85;
@@ -425,7 +431,7 @@ function texFireworks(c2,w,h,t,pal){
     }else{
       const life=(phase-.48)/.52;
       const ease=1-Math.pow(1-life,2);
-      const count=64+Math.floor(rand01(seed+7)*54);
+      const count=Math.max(16,Math.round((64+Math.floor(rand01(seed+7)*54))*den));
       const radius=Math.min(w,h)*(.22+rand01(seed+8)*.2)*ease;
       const fade=Math.max(0,1-life);
 
@@ -502,8 +508,8 @@ function texNeon(c2,w,h,t,pal){
   c2.fillStyle=g;c2.fillRect(0,h*.45,w,h);
 }
 
-function texWire(c2,w,h,t,pal){
-  const step=Math.max(24,w/14);
+function texWire(c2,w,h,t,pal,den=1){
+  const step=Math.max(12,Math.max(24,w/14)/Math.sqrt(den));
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   c2.strokeStyle=alpha(pal.a,.45);
@@ -524,10 +530,10 @@ function texWire(c2,w,h,t,pal){
   }
 }
 
-function texMatrix(c2,w,h,t,pal){
+function texMatrix(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
-  const cols=Math.max(8,Math.floor(w/18));
+  const cols=Math.max(3,Math.round(Math.max(8,Math.floor(w/18))*den));
   const colW=w/cols;
   c2.font=`${Math.max(10,colW*.85)}px monospace`;
   c2.textBaseline='top';
@@ -545,8 +551,8 @@ function texMatrix(c2,w,h,t,pal){
   }
 }
 
-function texChecker(c2,w,h,t,pal){
-  const size=Math.max(20,w/10);
+function texChecker(c2,w,h,t,pal,den=1){
+  const size=Math.max(8,Math.max(20,w/10)/Math.sqrt(den));
   const shift=(t*35)%(size*2);
   for(let y=-size;y<h+size;y+=size){
     for(let x=-size;x<w+size;x+=size){
@@ -577,7 +583,7 @@ function texFire(c2,w,h,t,pal){
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texFirecamp(c2,w,h,t,pal){
+function texFirecamp(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
 
@@ -588,7 +594,7 @@ function texFirecamp(c2,w,h,t,pal){
   c2.fillStyle=baseGlow;
   c2.fillRect(0,0,w,h);
 
-  const tongues=Math.max(7,Math.floor(w/24));
+  const tongues=Math.max(2,Math.round(Math.max(7,Math.floor(w/24))*den));
   for(let i=0;i<tongues;i++){
     const seed=i*12.37;
     const sway=Math.sin(t*(1.8+rand01(seed)*1.4)+seed)*(8+rand01(seed+1)*18);
@@ -671,9 +677,10 @@ function texRainbow(c2,w,h,t,pal){
   c2.fillStyle=g; c2.fillRect(0,0,w,h);
 }
 
-function texStars(c2,w,h,t,pal){
+function texStars(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg; c2.fillRect(0,0,w,h);
-  for(let i=0;i<250;i++){
+  const count=Math.max(24,Math.round(250*den));
+  for(let i=0;i<count;i++){
     const s=i*1234.5;
     const sx=((Math.sin(s)*.5+.5)*w*5+t*(18+i%25)*1.5)%w;
     const sy=(Math.cos(s*1.3)*.5+.5)*h;
@@ -710,14 +717,14 @@ function texPlasma(c2,w,h,t,pal){
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texSquares(c2,w,h,t,pal){
+function texSquares(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
 
   c2.save();
   c2.globalCompositeOperation='screen';
   const maxSide=Math.hypot(w,h)*1.15;
-  const count=4;
+  const count=Math.max(1,Math.min(12,Math.round(4*den)));
   for(let i=0;i<count;i++){
     const seed=i*37.19;
     const cycle=4.8+rand01(seed)*2.8;
@@ -798,15 +805,16 @@ function texTextScroll(c2,w,h,t,pal,poly){
   c2.restore();
 }
 
-function texRadar(c2,w,h,t,pal){
+function texRadar(c2,w,h,t,pal,den=1){
   const cx=w/2, cy=h/2, r=Math.max(w,h)*0.55;
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   c2.strokeStyle=alpha(pal.a,.18);
   c2.lineWidth=1;
-  for(let i=1;i<=4;i++){
+  const rings=Math.max(1,Math.round(4*den));
+  for(let i=1;i<=rings;i++){
     c2.beginPath();
-    c2.arc(cx,cy,r*i/4,0,Math.PI*2);
+    c2.arc(cx,cy,r*i/rings,0,Math.PI*2);
     c2.stroke();
   }
   c2.beginPath(); c2.moveTo(cx,0); c2.lineTo(cx,h); c2.stroke();
@@ -827,10 +835,10 @@ function texRadar(c2,w,h,t,pal){
   c2.restore();
 }
 
-function texStripes(c2,w,h,t,pal){
+function texStripes(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
-  const stripeW=Math.max(18,w/10);
+  const stripeW=Math.max(7,Math.max(18,w/10)/Math.sqrt(den));
   for(let i=-2;i<Math.ceil(w/stripeW)+4;i++){
     const x=(i*stripeW + (t*70)%stripeW) - stripeW;
     c2.fillStyle=i%2===0 ? pal.a : pal.b;
@@ -861,11 +869,12 @@ function texMarble(c2,w,h,t,pal){
   c2.drawImage(tmp,0,0,w,h);
 }
 
-function texRings(c2,w,h,t,pal){
+function texRings(c2,w,h,t,pal,den=1){
   const cx=w/2, cy=h/2;
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
-  for(let i=0;i<10;i++){
+  const count=Math.max(2,Math.round(10*den));
+  for(let i=0;i<count;i++){
     const r=(Math.min(w,h)*.08)+i*Math.min(w,h)*.075+Math.sin(t*2+i)*6;
     c2.beginPath();
     c2.arc(cx,cy,r,0,Math.PI*2);
@@ -875,8 +884,8 @@ function texRings(c2,w,h,t,pal){
   }
 }
 
-function texHalftone(c2,w,h,t,pal){
-  const dot=Math.max(10,w/18);
+function texHalftone(c2,w,h,t,pal,den=1){
+  const dot=Math.max(5,Math.max(10,w/18)/Math.sqrt(den));
   const bg=c2.createLinearGradient(0,0,w,h);
   bg.addColorStop(0,pal.bg);
   bg.addColorStop(1,mixColor(pal.bg,pal.b,.6));
@@ -894,10 +903,10 @@ function texHalftone(c2,w,h,t,pal){
   }
 }
 
-function texChevrons(c2,w,h,t,pal){
+function texChevrons(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
-  const band=Math.max(24,h/9);
+  const band=Math.max(10,Math.max(24,h/9)/Math.sqrt(den));
   for(let i=-2;i<h/band+4;i++){
     const y=i*band+(t*45%band)-band;
     c2.fillStyle=i%2===0?pal.a:pal.b;
@@ -911,12 +920,13 @@ function texChevrons(c2,w,h,t,pal){
   }
 }
 
-function texBeams(c2,w,h,t,pal){
+function texBeams(c2,w,h,t,pal,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
   const cx=w/2, cy=h/2;
-  for(let i=0;i<18;i++){
-    const a=(Math.PI*2/18)*i+t*.45;
+  const count=Math.max(4,Math.round(18*den));
+  for(let i=0;i<count;i++){
+    const a=(Math.PI*2/count)*i+t*.45;
     const spread=.08+(i%3)*.02;
     const g=c2.createLinearGradient(cx,cy,cx+Math.cos(a)*w,cy+Math.sin(a)*h);
     g.addColorStop(0,alpha(i%2===0 ? pal.a : pal.b,.9));
@@ -931,14 +941,14 @@ function texBeams(c2,w,h,t,pal){
   }
 }
 
-function texCascade(c2,w,h,t,pal,polyId){
+function texCascade(c2,w,h,t,pal,polyId,den=1){
   c2.fillStyle=pal.bg;
   c2.fillRect(0,0,w,h);
 
   const bins=Math.max(24,Math.floor(w/7));
   const binW=w/bins;
   const heights=Array(bins).fill(0);
-  const pieces=Math.max(95,Math.floor((w*h)/360));
+  const pieces=Math.max(24,Math.round(Math.max(95,Math.floor((w*h)/360))*den));
   const baseSeed=(polyId||1)*0.017;
   const fillT=Math.max(9,Math.min(16,Math.sqrt(w*h)/34));
   const flushT=.82;
